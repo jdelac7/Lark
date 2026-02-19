@@ -244,15 +244,94 @@ func readKeyEvent() string {
 	return ""
 }
 
-// readLineWithPrefix reads the rest of a line after the first character
-// has already been captured. Prints firstChar, then reads until Enter.
-func readLineWithPrefix(firstChar string) string {
-	fmt.Print(firstChar)
-	rest := readInput()
-	if rest == ctrlC {
-		return ctrlC
+// readInputSeeded enters raw mode with the first character already in
+// the buffer (and echoed), then reads the rest of the line normally.
+// This ensures backspace can delete every character including the first.
+func readInputSeeded(first string) string {
+	oldState, err := enableRawMode()
+	if err != nil {
+		return readLineFallback()
 	}
-	return firstChar + rest
+	defer restoreTerminal(oldState)
+
+	buf := []byte(first)
+	fmt.Print(first)
+
+	for {
+		b, err := readByte()
+		if err != nil {
+			return string(buf)
+		}
+
+		switch {
+		case b == '\r' || b == '\n':
+			fmt.Print("\r\n")
+			return string(buf)
+
+		case b == 127 || b == 8: // backspace
+			if len(buf) > 0 {
+				_, size := utf8.DecodeLastRune(buf)
+				buf = buf[:len(buf)-size]
+				fmt.Print("\b \b")
+			}
+			// Buffer empty after backspace — return so caller can
+			// resume arrow-key navigation.
+			if len(buf) == 0 {
+				return ""
+			}
+
+		case b == 3: // Ctrl-C
+			fmt.Print("\r\n")
+			return ctrlC
+
+		case b == '\033': // escape sequence — consume and discard
+			b2, err := readByte()
+			if err != nil {
+				continue
+			}
+			if b2 == '[' || b2 == 'O' {
+				for {
+					b3, err := readByte()
+					if err != nil {
+						break
+					}
+					if b3 >= 0x40 && b3 <= 0x7E {
+						break
+					}
+				}
+			}
+
+		case b >= 0x20 && b < 0x7F:
+			buf = append(buf, b)
+			fmt.Print(string(rune(b)))
+
+		case b >= 0xC0: // multi-byte UTF-8
+			var seq []byte
+			seq = append(seq, b)
+			var n int
+			switch {
+			case b&0xE0 == 0xC0:
+				n = 2
+			case b&0xF0 == 0xE0:
+				n = 3
+			case b&0xF8 == 0xF0:
+				n = 4
+			default:
+				continue
+			}
+			for i := 1; i < n; i++ {
+				cb, err := readByte()
+				if err != nil {
+					break
+				}
+				seq = append(seq, cb)
+			}
+			if utf8.Valid(seq) {
+				buf = append(buf, seq...)
+				fmt.Print(string(seq))
+			}
+		}
+	}
 }
 
 // ReadScenarioChoice reads a scenario selection with paginated display.
@@ -332,18 +411,16 @@ func ReadScenarioChoice(scenarios []api.Scenario) (choiceIndex int, freeText str
 			continue
 		}
 
-		// User typed a character — clear highlight and finish reading the line.
-		if cursorIdx >= 0 {
-			cursorIdx = -1
-			RenderScenarioPage(scenarios, pageIdx, cursorIdx)
-		}
+		// User typed a character — clear highlight and read the full line.
+		cursorIdx = -1
+		RenderScenarioPage(scenarios, pageIdx, cursorIdx)
 
-		input := readLineWithPrefix(key)
+		input := readInputSeeded(key)
 		if input == ctrlC {
 			return -2, ""
 		}
 		if input == "" {
-			fmt.Print("> ")
+			RenderScenarioPage(scenarios, pageIdx, cursorIdx)
 			continue
 		}
 
@@ -352,6 +429,8 @@ func ReadScenarioChoice(scenarios []api.Scenario) (choiceIndex int, freeText str
 			if n >= 1 && n <= total {
 				return n - 1, ""
 			}
+			// Re-render clean, then show error
+			RenderScenarioPage(scenarios, pageIdx, cursorIdx)
 			PrintError(fmt.Sprintf("Please enter 1-%d, or type a scenario", total))
 			continue
 		}
