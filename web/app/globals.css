@@ -1,17 +1,19 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #0a0a0f;
-  --color-bg-secondary: #12121a;
-  --color-bg-card: #1a1a2e;
-  --color-border: #2a2a3e;
-  --color-text: #e4e4ef;
-  --color-text-dim: #8888a0;
-  --color-accent: #22d3ee;
-  --color-accent-dim: #0891b2;
-  --color-green: #4ade80;
-  --color-yellow: #facc15;
+  --color-bg: #080808;
+  --color-bg-secondary: #0e0e0e;
+  --color-bg-card: #141414;
+  --color-border: #1e1e1e;
+  --color-text: #b0b0b0;
+  --color-text-dim: #555;
+  --color-accent: #00ff41;
+  --color-accent-dim: #00cc33;
+  --color-green: #00ff41;
+  --color-yellow: #ffd700;
+  --color-cyan: #00e5ff;
   --color-purple: #a78bfa;
+  --color-amber: #ff9900;
   --font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, monospace;
 }
 
@@ -25,6 +27,36 @@ body {
   font-family: var(--font-mono);
 }
 
+/* Scanline overlay */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.04) 2px,
+    rgba(0, 0, 0, 0.04) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Vignette effect */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 50%,
+    rgba(0, 0, 0, 0.5) 100%
+  );
+  pointer-events: none;
+  z-index: 9998;
+}
+
 ::selection {
   background-color: var(--color-accent);
   color: var(--color-bg);
@@ -32,24 +64,49 @@ body {
 
 /* Terminal cursor blink */
 @keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
 }
 
 .cursor-blink {
   animation: blink 1s step-end infinite;
 }
 
-/* Typing animation */
-@keyframes typewriter {
-  from { width: 0; }
-  to { width: 100%; }
+/* Phosphor text glow */
+.text-glow {
+  text-shadow: 0 0 8px currentColor, 0 0 20px currentColor;
+}
+
+.text-glow-subtle {
+  text-shadow: 0 0 6px currentColor;
 }
 
 /* Gradient text */
 .gradient-text {
-  background: linear-gradient(135deg, var(--color-accent), var(--color-purple));
+  background: linear-gradient(135deg, var(--color-accent), var(--color-cyan));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-dim);
 }

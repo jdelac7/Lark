@@ -1,48 +1,77 @@
-const steps = [
-  {
-    number: "1",
-    title: "Purchase",
-    description: "Subscribe for $3.99/month. You'll receive a license key instantly after checkout.",
-    code: null,
-  },
-  {
-    number: "2",
-    title: "Activate",
-    description: "Run one command to activate your license and unlock Lark on your machine.",
-    code: "$ lark activate YOUR-LICENSE-KEY",
-  },
-  {
-    number: "3",
-    title: "Play",
-    description: "Launch Lark and start learning through immersive text adventures.",
-    code: "$ lark",
-  },
-];
-
 export default function HowItWorks() {
   return (
-    <section id="how-it-works" className="border-y border-border bg-bg-secondary py-24">
-      <div className="mx-auto max-w-6xl px-6">
-        <h2 className="text-center text-3xl font-bold sm:text-4xl">
-          Up and running in{" "}
-          <span className="gradient-text">3 steps</span>
-        </h2>
+    <section id="quickstart" className="border-t border-border py-20">
+      <div className="mx-auto max-w-4xl px-6">
+        {/* Command prompt */}
+        <div className="mb-8 text-sm">
+          <span className="text-accent">user@lark</span>
+          <span className="text-text-dim">:</span>
+          <span className="text-cyan">~</span>
+          <span className="text-text-dim">$ </span>
+          <span className="text-text">lark quickstart</span>
+        </div>
 
-        <div className="mt-16 grid gap-8 lg:grid-cols-3">
-          {steps.map((step) => (
-            <div key={step.number} className="text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-accent/30 bg-accent/10 text-lg font-bold text-accent">
-                {step.number}
-              </div>
-              <h3 className="mt-4 text-xl font-semibold">{step.title}</h3>
-              <p className="mt-2 text-sm text-text-dim">{step.description}</p>
-              {step.code && (
-                <code className="mt-4 inline-block rounded-md border border-border bg-bg px-4 py-2 text-left text-sm text-green">
-                  {step.code}
-                </code>
-              )}
+        <div className="mb-8 text-sm font-bold text-yellow">
+          QUICKSTART GUIDE
+        </div>
+
+        <div className="space-y-8 text-sm">
+          {/* Step 1 */}
+          <div>
+            <div className="mb-2 text-text-dim">
+              <span className="text-accent">Step 1</span> &mdash; Install
             </div>
-          ))}
+            <div className="border border-border bg-bg-secondary p-4">
+              <div className="text-green">
+                $ curl -fsSL https://lark.joshburns.xyz/install.sh | sh
+              </div>
+              <div className="mt-2 text-accent">
+                ✓ Lark installed to ~/.local/bin/lark
+              </div>
+            </div>
+          </div>
+
+          {/* Step 2 */}
+          <div>
+            <div className="mb-2 text-text-dim">
+              <span className="text-accent">Step 2</span> &mdash; Subscribe
+            </div>
+            <div className="border border-border bg-bg-secondary p-4">
+              <div className="text-green">$ open https://lark.joshburns.xyz</div>
+              <div className="mt-2 text-text-dim">
+                &rarr; Subscribe for $2.99/month
+              </div>
+              <div className="text-text-dim">
+                &rarr; Receive your license key instantly
+              </div>
+            </div>
+          </div>
+
+          {/* Step 3 */}
+          <div>
+            <div className="mb-2 text-text-dim">
+              <span className="text-accent">Step 3</span> &mdash; Activate
+              &amp; Play
+            </div>
+            <div className="border border-border bg-bg-secondary p-4">
+              <div className="text-green">
+                $ lark activate YOUR-LICENSE-KEY
+              </div>
+              <div className="mt-2 text-accent">
+                ✓ License activated successfully
+              </div>
+              <div className="mt-2 text-green">$ lark</div>
+              <div className="mt-2 text-accent">
+                &nbsp;&nbsp;Starting Lark v0.8.0...
+              </div>
+              <div className="text-text-dim">
+                &nbsp;&nbsp;Loading scenarios...
+              </div>
+              <div className="mt-1 text-cyan">
+                &nbsp;&nbsp;Welcome back, adventurer. Where shall we go today?
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>

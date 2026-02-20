@@ -38,6 +38,9 @@ func main() {
 		backendLabel = "google/" + cfg.GeminiModel
 	}
 
+	// Wrap AI client with response cache for premade scenarios
+	client = ai.NewCachedClient(client)
+
 	sessionStore := session.NewMemoryStore()
 	progressStore := progress.NewMemoryStore()
 

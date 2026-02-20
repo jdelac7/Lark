@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"syscall"
+	"time"
 	"unicode/utf8"
 
 	"github.com/joshburnsxyz/lark/api"
@@ -134,7 +136,23 @@ func readLineFallback() string {
 // ReadChoice reads a menu selection (1-based) or returns -1 for free text.
 // Returns choiceIndex=-2 on Ctrl-C (quit signal).
 // numChoices is the count of AI-provided choices; option numChoices+1 is "write your own".
+// When dialog choices are hidden in settings, goes straight to free-text input.
 func ReadChoice(numChoices int) (choiceIndex int, freeText string) {
+	// Free-text only mode when choices are hidden
+	if appSettings != nil && appSettings.HideChoices {
+		for {
+			input := readInput()
+			if input == ctrlC {
+				return -2, ""
+			}
+			if input == "" {
+				fmt.Print("> ")
+				continue
+			}
+			return -1, input
+		}
+	}
+
 	freeOption := numChoices + 1
 	for {
 		input := readInput()
@@ -179,7 +197,20 @@ const (
 	keyRight = "\x1b[C"
 	keyLeft  = "\x1b[D"
 	keyEnter = "\r"
+	keyEsc   = "\x1b"
 )
+
+// byteAvailable checks whether at least one byte is ready to read from stdin
+// within the given timeout. Used to distinguish bare Escape from the start
+// of an arrow-key escape sequence.
+func byteAvailable(timeout time.Duration) bool {
+	fd := int(os.Stdin.Fd())
+	var fds syscall.FdSet
+	fds.Bits[fd/64] |= 1 << (uint(fd) % 64)
+	tv := syscall.NsecToTimeval(int64(timeout))
+	n, err := syscall.Select(fd+1, &fds, nil, nil, &tv)
+	return err == nil && n > 0
+}
 
 // readKeyEvent reads a single key event in raw mode.
 // Returns arrow sentinels for arrow keys, keyEnter for bare Enter,
@@ -202,9 +233,13 @@ func readKeyEvent() string {
 	case b == 3:
 		return ctrlC
 	case b == '\033':
+		// Bare Escape (no following bytes within 50ms)
+		if !byteAvailable(50 * time.Millisecond) {
+			return keyEsc
+		}
 		b2, err := readByte()
 		if err != nil {
-			return ""
+			return keyEsc
 		}
 		if b2 == '[' || b2 == 'O' {
 			b3, err := readByte()
@@ -336,8 +371,10 @@ func readInputSeeded(first string) string {
 
 // ReadScenarioChoice reads a scenario selection with paginated display.
 // Supports arrow keys (up/down to highlight, left/right to page) and typing.
-// Returns choiceIndex=-2 on Ctrl-C, choiceIndex=-1 with freeText for custom.
-func ReadScenarioChoice(scenarios []api.Scenario) (choiceIndex int, freeText string) {
+// completedSet marks which scenarios have been completed for the given language.
+// Returns choiceIndex=-2 on Ctrl-C, choiceIndex=-1 with freeText for custom,
+// choiceIndex=-3 for go back (Escape, or Left on first page).
+func ReadScenarioChoice(scenarios []api.Scenario, completedSet map[string]bool, langCode string) (choiceIndex int, freeText string) {
 	if len(scenarios) == 0 {
 		return -2, ""
 	}
@@ -349,7 +386,7 @@ func ReadScenarioChoice(scenarios []api.Scenario) (choiceIndex int, freeText str
 	cursorIdx := -1 // -1 = nothing highlighted
 	total := len(scenarios)
 
-	RenderScenarioPage(scenarios, pageIdx, cursorIdx)
+	RenderScenarioPage(scenarios, pageIdx, cursorIdx, completedSet, langCode)
 
 	for {
 		key := readKeyEvent()
@@ -366,13 +403,16 @@ func ReadScenarioChoice(scenarios []api.Scenario) (choiceIndex int, freeText str
 		case ctrlC:
 			return -2, ""
 
+		case keyEsc:
+			return -3, ""
+
 		case keyDown:
 			if cursorIdx < 0 {
 				cursorIdx = 0
 			} else if cursorIdx < pageCount-1 {
 				cursorIdx++
 			}
-			RenderScenarioPage(scenarios, pageIdx, cursorIdx)
+			RenderScenarioPage(scenarios, pageIdx, cursorIdx, completedSet, langCode)
 			continue
 
 		case keyUp:
@@ -381,14 +421,14 @@ func ReadScenarioChoice(scenarios []api.Scenario) (choiceIndex int, freeText str
 			} else if cursorIdx > 0 {
 				cursorIdx--
 			}
-			RenderScenarioPage(scenarios, pageIdx, cursorIdx)
+			RenderScenarioPage(scenarios, pageIdx, cursorIdx, completedSet, langCode)
 			continue
 
 		case keyRight:
 			if pageIdx < pages-1 {
 				pageIdx++
 				cursorIdx = -1
-				RenderScenarioPage(scenarios, pageIdx, cursorIdx)
+				RenderScenarioPage(scenarios, pageIdx, cursorIdx, completedSet, langCode)
 			}
 			continue
 
@@ -396,7 +436,7 @@ func ReadScenarioChoice(scenarios []api.Scenario) (choiceIndex int, freeText str
 			if pageIdx > 0 {
 				pageIdx--
 				cursorIdx = -1
-				RenderScenarioPage(scenarios, pageIdx, cursorIdx)
+				RenderScenarioPage(scenarios, pageIdx, cursorIdx, completedSet, langCode)
 			}
 			continue
 
@@ -413,14 +453,14 @@ func ReadScenarioChoice(scenarios []api.Scenario) (choiceIndex int, freeText str
 
 		// User typed a character — clear highlight and read the full line.
 		cursorIdx = -1
-		RenderScenarioPage(scenarios, pageIdx, cursorIdx)
+		RenderScenarioPage(scenarios, pageIdx, cursorIdx, completedSet, langCode)
 
 		input := readInputSeeded(key)
 		if input == ctrlC {
 			return -2, ""
 		}
 		if input == "" {
-			RenderScenarioPage(scenarios, pageIdx, cursorIdx)
+			RenderScenarioPage(scenarios, pageIdx, cursorIdx, completedSet, langCode)
 			continue
 		}
 
@@ -430,7 +470,7 @@ func ReadScenarioChoice(scenarios []api.Scenario) (choiceIndex int, freeText str
 				return n - 1, ""
 			}
 			// Re-render clean, then show error
-			RenderScenarioPage(scenarios, pageIdx, cursorIdx)
+			RenderScenarioPage(scenarios, pageIdx, cursorIdx, completedSet, langCode)
 			PrintError(fmt.Sprintf("Please enter 1-%d, or type a scenario", total))
 			continue
 		}
@@ -454,6 +494,154 @@ func ReadMenuChoice(max int) int {
 			continue
 		}
 		return n - 1
+	}
+}
+
+// ReadListChoice renders a single-page arrow-key selector using the given
+// render function and returns the selected index.
+// Returns -1 on Ctrl-C (quit), -2 on Escape (go back).
+// renderFn is called with the current cursor index to redraw.
+func ReadListChoice(count int, renderFn func(cursor int)) int {
+	cursor := 0
+	renderFn(cursor)
+
+	for {
+		key := readKeyEvent()
+		switch key {
+		case ctrlC:
+			return -1
+		case keyEsc:
+			return -2
+		case keyDown:
+			if cursor < count-1 {
+				cursor++
+			}
+			renderFn(cursor)
+		case keyUp:
+			if cursor > 0 {
+				cursor--
+			}
+			renderFn(cursor)
+		case keyEnter:
+			return cursor
+		case "":
+			continue
+		default:
+			// Number key shortcut
+			if n, err := strconv.Atoi(key); err == nil && n >= 1 && n <= count {
+				return n - 1
+			}
+		}
+	}
+}
+
+// ReadBannerLanguageChoice is a two-column arrow-key selector for the
+// banner language screen. Up/Down move within a column, Left/Right switch
+// columns. Returns the selected index, -1 on Ctrl-C/Escape (quit),
+// or -2 when the user presses 's' (open settings).
+func ReadBannerLanguageChoice(count int, renderFn func(cursor int)) int {
+	cursor := 0
+	renderFn(cursor)
+
+	for {
+		key := readKeyEvent()
+		switch key {
+		case ctrlC, keyEsc:
+			return -1
+		case keyDown:
+			if cursor+2 < count {
+				cursor += 2
+			}
+			renderFn(cursor)
+		case keyUp:
+			if cursor-2 >= 0 {
+				cursor -= 2
+			}
+			renderFn(cursor)
+		case keyRight:
+			if cursor%2 == 0 && cursor+1 < count {
+				cursor++
+			}
+			renderFn(cursor)
+		case keyLeft:
+			if cursor%2 == 1 {
+				cursor--
+			}
+			renderFn(cursor)
+		case keyEnter:
+			return cursor
+		case "":
+			continue
+		default:
+			if key == "s" || key == "S" {
+				return -2
+			}
+			if n, err := strconv.Atoi(key); err == nil && n >= 1 && n <= count {
+				return n - 1
+			}
+		}
+	}
+}
+
+// ReadSettings runs the settings toggle screen. Arrow keys navigate,
+// Enter toggles the selected setting, Esc returns to the previous screen.
+// saveFn is called after each toggle to persist changes.
+func ReadSettings(settings *Settings, saveFn func()) {
+	cursor := 0
+	RenderSettingsPage(settings, cursor)
+
+	for {
+		key := readKeyEvent()
+		switch key {
+		case ctrlC, keyEsc:
+			return
+		case keyDown:
+			if cursor < len(settingsLabels)-1 {
+				cursor++
+			}
+		case keyUp:
+			if cursor > 0 {
+				cursor--
+			}
+		case keyEnter:
+			toggleSetting(settings, cursor)
+			saveFn()
+		case "":
+			continue
+		}
+		RenderSettingsPage(settings, cursor)
+	}
+}
+
+// ReadCustomScenario renders the custom scenario page and reads the user's
+// scenario description. Returns the text, or "" if the user pressed Escape
+// (go back), or ctrlC on quit.
+func ReadCustomScenario() string {
+	RenderCustomScenarioPage()
+
+	// Read first key event to detect Escape before committing to line input
+	for {
+		key := readKeyEvent()
+		switch key {
+		case ctrlC:
+			return ctrlC
+		case keyEsc:
+			return ""
+		case keyEnter, "":
+			continue
+		default:
+			// User started typing — read the rest of the line
+			input := readInputSeeded(key)
+			if input == ctrlC {
+				return ctrlC
+			}
+			if input == "" {
+				// Backspaced everything — re-render and wait again
+				RenderCustomScenarioPage()
+				continue
+			}
+			return input
+		}
 	}
 }
 

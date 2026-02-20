@@ -1,28 +1,30 @@
 export default function Navigation() {
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-bg/80 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <a href="#" className="text-lg font-bold text-accent">
-          Lark
-        </a>
-        <div className="flex items-center gap-6 text-sm text-text-dim">
+    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-bg/90 backdrop-blur-sm">
+      <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
+        <div className="flex items-center gap-3">
+          <span className="text-glow-subtle font-bold text-accent">lark</span>
+          <span className="text-xs text-text-dim">v0.8.0</span>
+          <span className="border border-yellow/40 bg-yellow/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-yellow">beta</span>
+        </div>
+        <div className="flex items-center text-xs text-text-dim">
           <a
             href="#features"
-            className="hidden transition-colors hover:text-text sm:inline"
+            className="px-2.5 py-1 transition-colors hover:text-accent"
           >
-            Features
+            [features]
           </a>
           <a
-            href="#how-it-works"
-            className="hidden transition-colors hover:text-text sm:inline"
+            href="#quickstart"
+            className="hidden px-2.5 py-1 transition-colors hover:text-accent sm:inline"
           >
-            How It Works
+            [quickstart]
           </a>
           <a
-            href="#pricing"
-            className="rounded-md bg-accent px-4 py-2 font-semibold text-bg transition-colors hover:bg-accent-dim"
+            href="#shop"
+            className="px-2.5 py-1 transition-colors hover:text-accent"
           >
-            Get Started
+            [shop]
           </a>
         </div>
       </div>

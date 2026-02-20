@@ -17,12 +17,21 @@ const (
 	DifficultyAdvanced     Difficulty = "advanced"
 )
 
+// Category groups scenarios into thematic collections.
+type Category string
+
+const (
+	CategoryEveryday  Category = "everyday"
+	CategoryAdventure Category = "adventure"
+)
+
 // Scenario represents a playable scenario in the catalog.
 type Scenario struct {
 	ID          string     `json:"id"`
 	Name        string     `json:"name"`
 	Description string     `json:"description"`
 	Difficulty  Difficulty `json:"difficulty"`
+	Category    Category   `json:"category"`
 }
 
 // Language represents a supported target language.

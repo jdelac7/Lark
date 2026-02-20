@@ -247,6 +247,15 @@ func (c *GoogleClient) SendInput(ctx context.Context, scenario *api.Scenario, la
 	return msg, correction, newHistory, nil
 }
 
+// BuildStartHistory reconstructs Google-format conversation history from a cached first-turn response.
+func (c *GoogleClient) BuildStartHistory(scenario *api.Scenario, lang *api.Language, responseText string) any {
+	seed := ScenarioSeed(scenario, lang)
+	return []*genai.Content{
+		{Role: "user", Parts: []*genai.Part{{Text: seed}}},
+		{Role: "model", Parts: []*genai.Part{{Text: responseText}}},
+	}
+}
+
 func googleTurnSchema() *genai.Schema {
 	return &genai.Schema{
 		Type: genai.TypeObject,

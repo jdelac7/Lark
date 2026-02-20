@@ -21,6 +21,10 @@ type Client interface {
 	StartScenarioStream(ctx context.Context, scenario *api.Scenario, lang *api.Language, callback StreamCallback) (*api.GameMessage, any, error)
 	// SendInputStream is like SendInput but streams tokens via callback.
 	SendInputStream(ctx context.Context, scenario *api.Scenario, lang *api.Language, history any, input string, callback StreamCallback) (*api.GameMessage, *api.Correction, any, error)
+
+	// BuildStartHistory reconstructs backend-specific conversation history from a
+	// cached first-turn response, so subsequent SendInput calls work correctly.
+	BuildStartHistory(scenario *api.Scenario, lang *api.Language, responseText string) any
 }
 
 // FormatChoiceInput formats a choice selection for the LLM.

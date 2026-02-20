@@ -16,7 +16,7 @@ import (
 
 const (
 	websiteURL      = "https://lark.joshburns.xyz"
-	polarOrgID      = "" // Set via POLAR_ORGANIZATION_ID env var
+	polarOrgID      = "9c530107-ccf7-4462-bc5e-cb245f8143a6"
 	licenseCacheTTL = 24 * time.Hour
 	configDirName   = "lark"
 	licenseFileName = "license"

@@ -1,66 +1,77 @@
 const features = [
   {
-    title: "25 Scenarios",
-    description:
-      "From restaurants to job interviews — practice real-world situations you'll actually encounter abroad.",
-    icon: "🗺",
+    flag: "--scenarios",
+    summary: "40 scenarios (25 everyday + 15 adventure)",
+    detail:
+      "From restaurants to job interviews — practice situations you'll actually encounter abroad.",
   },
   {
-    title: "8 Languages",
-    description:
+    flag: "--languages",
+    summary: "8 supported",
+    detail:
       "Spanish, French, German, Japanese, Italian, Portuguese, Korean, and Chinese.",
-    icon: "🌍",
   },
   {
-    title: "Dynamic Stories",
-    description:
-      "Every conversation is unique. The game adapts to your choices and creates dynamic, branching storylines.",
-    icon: "🎭",
+    flag: "--stories",
+    summary: "Dynamic, branching narratives",
+    detail:
+      "Every playthrough is unique. The game adapts to your choices and creates branching storylines.",
   },
   {
-    title: "Grammar Correction",
-    description:
-      "Write your own responses and get instant feedback on grammar, spelling, and natural phrasing.",
-    icon: "✏",
+    flag: "--grammar",
+    summary: "Instant correction & feedback",
+    detail:
+      "Write your own responses and get real-time feedback on grammar, spelling, and phrasing.",
   },
   {
-    title: "Vocabulary Tracking",
-    description:
+    flag: "--vocabulary",
+    summary: "Contextual word tracking",
+    detail:
       "Learn 2-4 new words per turn with translations and contextual usage notes.",
-    icon: "📖",
   },
   {
-    title: "Custom Scenarios",
-    description:
-      "Create your own scenarios — practice any situation you can imagine, from buying flowers to renting an apartment.",
-    icon: "⚡",
+    flag: "--custom",
+    summary: "Create your own scenarios",
+    detail:
+      "Design any scenario you can imagine — from buying flowers to renting an apartment.",
   },
 ];
 
 export default function Features() {
   return (
-    <section id="features" className="py-24">
-      <div className="mx-auto max-w-6xl px-6">
-        <h2 className="text-center text-3xl font-bold sm:text-4xl">
-          Everything you need to{" "}
-          <span className="gradient-text">learn by doing</span>
-        </h2>
-        <p className="mx-auto mt-4 max-w-2xl text-center text-text-dim">
+    <section id="features" className="border-t border-border py-20">
+      <div className="mx-auto max-w-4xl px-6">
+        {/* Command prompt */}
+        <div className="mb-8 text-sm">
+          <span className="text-accent">user@lark</span>
+          <span className="text-text-dim">:</span>
+          <span className="text-cyan">~</span>
+          <span className="text-text-dim">$ </span>
+          <span className="text-text">lark --help</span>
+        </div>
+
+        <div className="mb-6 text-sm">
+          <span className="font-bold text-yellow">USAGE:</span>
+          <span className="ml-2 text-text-dim">lark [OPTIONS] [SCENARIO]</span>
+        </div>
+
+        <div className="mb-8 text-sm text-text-dim">
           Forget flashcards and grammar drills. Lark drops you into realistic
           scenarios where you learn by actually using the language.
-        </p>
+        </div>
 
-        <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {features.map((feature) => (
-            <div
-              key={feature.title}
-              className="rounded-lg border border-border bg-bg-card p-6 transition-colors hover:border-accent/30"
-            >
-              <div className="text-2xl">{feature.icon}</div>
-              <h3 className="mt-4 text-lg font-semibold">{feature.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-text-dim">
-                {feature.description}
-              </p>
+        <div className="mb-4 text-sm font-bold text-yellow">OPTIONS:</div>
+
+        <div className="space-y-5 font-mono text-sm">
+          {features.map((f) => (
+            <div key={f.flag}>
+              <div className="flex flex-col gap-1 sm:flex-row sm:gap-0">
+                <span className="w-44 shrink-0 text-accent">{f.flag}</span>
+                <span className="text-text">{f.summary}</span>
+              </div>
+              <div className="mt-1 text-xs leading-relaxed text-text-dim sm:pl-44">
+                {f.detail}
+              </div>
             </div>
           ))}
         </div>

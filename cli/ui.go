@@ -71,6 +71,10 @@ func ShowCursor() {
 	fmt.Print(showCursor)
 }
 
+// appSettings points to the active settings from save data. Checked by
+// render functions to conditionally hide translations, choices, etc.
+var appSettings *Settings
+
 // --- box drawing helpers ---
 
 func hline(w int) string {
@@ -202,8 +206,10 @@ func buildNarrative(msg *api.GameMessage, w, inner int) []string {
 	for _, l := range wrapText(msg.Narrative, inner) {
 		lines = append(lines, boxLine(bold+blue+l+reset, w))
 	}
-	for _, l := range wrapText(msg.Translation, inner) {
-		lines = append(lines, boxLine(dim+l+reset, w))
+	if appSettings == nil || !appSettings.HideTranslations {
+		for _, l := range wrapText(msg.Translation, inner) {
+			lines = append(lines, boxLine(dim+l+reset, w))
+		}
 	}
 	return lines
 }
@@ -221,14 +227,16 @@ func buildNPC(msg *api.GameMessage, w, inner int) []string {
 		}
 		lines = append(lines, boxLine(pfx+l+reset, w))
 	}
-	for _, l := range wrapText(msg.NPCDialogTranslation, inner-7) {
-		lines = append(lines, boxLine("       "+dim+l+reset, w))
+	if appSettings == nil || !appSettings.HideTranslations {
+		for _, l := range wrapText(msg.NPCDialogTranslation, inner-7) {
+			lines = append(lines, boxLine("       "+dim+l+reset, w))
+		}
 	}
 	return lines
 }
 
 func buildVocab(vocab []api.VocabItem, w int) []string {
-	if len(vocab) == 0 {
+	if len(vocab) == 0 || (appSettings != nil && appSettings.HideVocabulary) {
 		return nil
 	}
 	var lines []string
@@ -245,7 +253,7 @@ func buildVocab(vocab []api.VocabItem, w int) []string {
 }
 
 func buildGrammar(c *api.Correction, w, inner int) []string {
-	if c == nil {
+	if c == nil || (appSettings != nil && appSettings.HideGrammar) {
 		return nil
 	}
 	var lines []string
@@ -263,13 +271,28 @@ func buildChoices(msg *api.GameMessage, w int) []string {
 	if len(msg.Choices) == 0 || msg.Finished {
 		return nil
 	}
+	// When choices are hidden, show only a free-text prompt
+	if appSettings != nil && appSettings.HideChoices {
+		return []string{
+			boxDiv(w),
+			boxLine("  "+dim+italic+"Write your response in the target language..."+reset, w),
+		}
+	}
 	var lines []string
 	lines = append(lines, boxDiv(w))
+	hideTranslations := appSettings != nil && appSettings.HideTranslations
 	for i, c := range msg.Choices {
-		l := fmt.Sprintf("  %s%d)%s %s%s%s  %s(%s)%s",
-			bold+green, i+1, reset,
-			cyan, c.Text, reset,
-			dim, c.Translation, reset)
+		var l string
+		if hideTranslations {
+			l = fmt.Sprintf("  %s%d)%s %s%s%s",
+				bold+green, i+1, reset,
+				cyan, c.Text, reset)
+		} else {
+			l = fmt.Sprintf("  %s%d)%s %s%s%s  %s(%s)%s",
+				bold+green, i+1, reset,
+				cyan, c.Text, reset,
+				dim, c.Translation, reset)
+		}
 		lines = append(lines, boxLine(l, w))
 	}
 	// Add explicit free-text option
@@ -458,7 +481,7 @@ func RenderStreamingScreen(scenario, lang string, correction *api.Correction, ra
 		for _, l := range wrapText(msg.Narrative, inner) {
 			narrative = append(narrative, boxLine(bold+blue+l+reset, w))
 		}
-		if msg.Translation != "" {
+		if msg.Translation != "" && (appSettings == nil || !appSettings.HideTranslations) {
 			for _, l := range wrapText(msg.Translation, inner) {
 				narrative = append(narrative, boxLine(dim+l+reset, w))
 			}
@@ -536,8 +559,10 @@ func RenderFinishedScreen(scenarioName, language string, msg *api.GameMessage) {
 	for _, l := range wrapText(msg.Narrative, inner) {
 		lines = append(lines, boxLine(bold+blue+l+reset, w))
 	}
-	for _, l := range wrapText(msg.Translation, inner) {
-		lines = append(lines, boxLine(dim+l+reset, w))
+	if appSettings == nil || !appSettings.HideTranslations {
+		for _, l := range wrapText(msg.Translation, inner) {
+			lines = append(lines, boxLine(dim+l+reset, w))
+		}
 	}
 	lines = append(lines,
 		boxEmpty(w),
@@ -552,7 +577,18 @@ func RenderFinishedScreen(scenarioName, language string, msg *api.GameMessage) {
 	fmt.Print(b.String())
 }
 
-// RenderBanner renders the title screen.
+// bannerArt returns the ASCII art lines for the Lark logo.
+func bannerArt() []string {
+	return []string{
+		bold + cyan + "  _          _    " + reset,
+		bold + cyan + " | |   __ _ | |__ " + reset,
+		bold + cyan + " | |  / _` || '__|| |/ /" + reset,
+		bold + cyan + " | |_| (_| || |   |   < " + reset,
+		bold + cyan + " |____\\__,_||_|   |_|\\_\\" + reset,
+	}
+}
+
+// RenderBanner renders a static title screen (used as a loading state).
 func RenderBanner() {
 	w, _ := getTermSize()
 	if w > 120 {
@@ -564,27 +600,92 @@ func RenderBanner() {
 
 	var b strings.Builder
 	b.WriteString(clearSeq)
-
-	art := []string{
-		bold + cyan + "  _          _    " + reset,
-		bold + cyan + " | |   __ _ | |__ " + reset,
-		bold + cyan + " | |  / _` || '__|| |/ /" + reset,
-		bold + cyan + " | |_| (_| || |   |   < " + reset,
-		bold + cyan + " |____\\__,_||_|   |_|\\_\\" + reset,
-	}
+	b.WriteString(hideCursor)
 
 	lines := []string{boxTop(w), boxEmpty(w)}
-	for _, a := range art {
+	for _, a := range bannerArt() {
 		lines = append(lines, boxLine(a, w))
 	}
 	lines = append(lines,
 		boxEmpty(w),
 		boxLine(dim+"  A text-adventure language learning game"+reset, w),
 		boxEmpty(w),
+		boxLine(dim+italic+"  Connecting..."+reset, w),
+		boxEmpty(w),
 		boxBottom(w),
 	)
 	writeLines(&b, lines)
 
+	fmt.Print(b.String())
+}
+
+// formatLangItem formats a single language item for two-column display,
+// padded to colWidth visible characters.
+func formatLangItem(languages []string, idx, cursorIdx, colWidth int) string {
+	if idx >= len(languages) {
+		return padRight("", colWidth)
+	}
+	name := languages[idx]
+	num := idx + 1
+	if idx == cursorIdx {
+		content := fmt.Sprintf("  %s%s▸ %s%s", highlight+bold, white, name, reset)
+		return padRight(content, colWidth)
+	}
+	content := fmt.Sprintf("  %s%d)%s %s", bold+green, num, reset, name)
+	return padRight(content, colWidth)
+}
+
+// RenderBannerLanguages renders the banner with an integrated two-column
+// language selector below it.
+func RenderBannerLanguages(languages []string, cursorIdx int) {
+	w, _ := getTermSize()
+	if w > 120 {
+		w = 120
+	}
+	if w < 40 {
+		w = 40
+	}
+	inner := w - 4
+
+	var b strings.Builder
+	b.WriteString(clearSeq)
+	b.WriteString(hideCursor)
+
+	lines := []string{boxTop(w), boxEmpty(w)}
+	for _, a := range bannerArt() {
+		lines = append(lines, boxLine(a, w))
+	}
+	lines = append(lines,
+		boxEmpty(w),
+		boxLine(dim+"  A text-adventure language learning game"+reset, w),
+		boxEmpty(w),
+		boxDiv(w),
+		boxLine(bold+cyan+"  Choose a Language"+reset, w),
+		boxEmpty(w),
+	)
+
+	// Two-column layout
+	colWidth := inner / 2
+	numRows := (len(languages) + 1) / 2
+	for row := 0; row < numRows; row++ {
+		leftIdx := row * 2
+		rightIdx := row * 2 + 1
+		left := formatLangItem(languages, leftIdx, cursorIdx, colWidth)
+		right := ""
+		if rightIdx < len(languages) {
+			right = formatLangItem(languages, rightIdx, cursorIdx, colWidth)
+		}
+		lines = append(lines, boxLine(left+right, w))
+	}
+
+	lines = append(lines,
+		boxEmpty(w),
+		boxDiv(w),
+		boxLine("  "+dim+bold+"↑↓←→"+reset+dim+" select  ·  "+bold+"Enter"+reset+dim+" confirm  ·  "+bold+"s"+reset+dim+" settings"+reset, w),
+		boxEmpty(w),
+		boxBottom(w),
+	)
+	writeLines(&b, lines)
 	fmt.Print(b.String())
 }
 
@@ -627,11 +728,55 @@ func totalPages(n, perPage int) int {
 // highlight is the ANSI sequence for reverse video (selected item).
 const highlight = "\033[7m"
 
+// RenderListPage renders a generic single-page arrow-key selector.
+// title is shown in the header, items are the choices, cursorIdx is highlighted.
+func RenderListPage(title string, items []string, cursorIdx int) {
+	w, _ := getTermSize()
+	if w > 120 {
+		w = 120
+	}
+	if w < 40 {
+		w = 40
+	}
+
+	var b strings.Builder
+	b.WriteString(clearSeq)
+	b.WriteString(hideCursor)
+
+	lines := []string{
+		boxTop(w),
+		boxLine(bold+cyan+"  Lark"+reset+dim+"  ·  "+title+reset, w),
+		boxDiv(w),
+		boxEmpty(w),
+	}
+	for i, item := range items {
+		if i == cursorIdx {
+			lines = append(lines,
+				boxLine(fmt.Sprintf("  %s%s▸ %s%s", highlight+bold, white, item, reset), w),
+			)
+		} else {
+			lines = append(lines,
+				boxLine(fmt.Sprintf("  %s%d)%s %s", bold+green, i+1, reset, item), w),
+			)
+		}
+	}
+	lines = append(lines,
+		boxEmpty(w),
+		boxDiv(w),
+		boxLine("  "+dim+bold+"↑↓"+reset+dim+" select  ·  "+bold+"Enter"+reset+dim+" to confirm  ·  "+bold+"Esc"+reset+dim+" back"+reset, w),
+		boxEmpty(w),
+		boxBottom(w),
+	)
+	writeLines(&b, lines)
+	fmt.Print(b.String())
+}
+
 // RenderScenarioPage renders a page of the scenario selection menu.
 // pageIdx is 0-based, scenarios is the full list.
 // cursorIdx is the index within the current page of the highlighted scenario,
 // or -1 if nothing is highlighted.
-func RenderScenarioPage(scenarios []api.Scenario, pageIdx, cursorIdx int) {
+// completedSet and langCode are used to show checkmarks on finished scenarios.
+func RenderScenarioPage(scenarios []api.Scenario, pageIdx, cursorIdx int, completedSet map[string]bool, langCode string) {
 	w, h := getTermSize()
 	if w > 120 {
 		w = 120
@@ -668,18 +813,26 @@ func RenderScenarioPage(scenarios []api.Scenario, pageIdx, cursorIdx int) {
 		num := start + i + 1
 		dc := difficultyColor(s.Difficulty)
 		selected := i == cursorIdx
+
+		// Check completion
+		check := "  "
+		key := saveKey(s.ID, langCode)
+		if completedSet[key] {
+			check = green + "✓ " + reset
+		}
+
 		if selected {
 			lines = append(lines,
-				boxLine(fmt.Sprintf("  %s%s▸ %2d) %-24s [%s]%s",
-					highlight+bold, white, num, s.Name, s.Difficulty, reset), w),
-				boxLine(fmt.Sprintf("  %s     %s%s",
+				boxLine(fmt.Sprintf("  %s%s%s▸ %2d) %-24s [%s]%s",
+					check, highlight+bold, white, num, s.Name, s.Difficulty, reset), w),
+				boxLine(fmt.Sprintf("  %s       %s%s",
 					highlight, s.Description, reset), w),
 			)
 		} else {
 			lines = append(lines,
-				boxLine(fmt.Sprintf("  %s%2d)%s %s%-24s%s %s[%s]%s",
-					bold+green, num, reset, cyan, s.Name, reset, dc, s.Difficulty, reset), w),
-				boxLine("     "+dim+s.Description+reset, w),
+				boxLine(fmt.Sprintf("  %s%s%2d)%s %s%-24s%s %s[%s]%s",
+					check, bold+green, num, reset, cyan, s.Name, reset, dc, s.Difficulty, reset), w),
+				boxLine("       "+dim+s.Description+reset, w),
 			)
 		}
 	}
@@ -694,6 +847,7 @@ func RenderScenarioPage(scenarios []api.Scenario, pageIdx, cursorIdx int) {
 		navParts = append(navParts, bold+"→"+reset+dim+" next")
 	}
 	navParts = append(navParts, bold+"↑↓"+reset+dim+" select")
+	navParts = append(navParts, bold+"Esc"+reset+dim+" back")
 	navHint := "  " + dim + strings.Join(navParts, "  ·  ") + reset
 	navHint += dim + "  ·  " + reset
 	navHint += dim + italic + "or type a custom scenario" + reset
@@ -708,8 +862,54 @@ func RenderScenarioPage(scenarios []api.Scenario, pageIdx, cursorIdx int) {
 	fmt.Print(b.String())
 }
 
-// RenderLanguageList renders the language selection menu.
-func RenderLanguageList(languages []api.Language) {
+// RenderContinuePrompt renders a prompt asking if the user wants to continue
+// a previous session or start fresh.
+func RenderContinuePrompt(scenarioName string, items []string, cursorIdx int) {
+	w, _ := getTermSize()
+	if w > 120 {
+		w = 120
+	}
+	if w < 40 {
+		w = 40
+	}
+
+	var b strings.Builder
+	b.WriteString(clearSeq)
+	b.WriteString(hideCursor)
+
+	lines := []string{
+		boxTop(w),
+		boxLine(bold+cyan+"  Lark"+reset+dim+"  ·  "+scenarioName+reset, w),
+		boxDiv(w),
+		boxEmpty(w),
+		boxLine(bold+yellow+"  You have a saved session for this scenario."+reset, w),
+		boxEmpty(w),
+	}
+	for i, item := range items {
+		if i == cursorIdx {
+			lines = append(lines,
+				boxLine(fmt.Sprintf("  %s%s▸ %s%s", highlight+bold, white, item, reset), w),
+			)
+		} else {
+			lines = append(lines,
+				boxLine(fmt.Sprintf("  %s%d)%s %s", bold+green, i+1, reset, item), w),
+			)
+		}
+	}
+	lines = append(lines,
+		boxEmpty(w),
+		boxDiv(w),
+		boxLine("  "+dim+bold+"↑↓"+reset+dim+" select  ·  "+bold+"Enter"+reset+dim+" to confirm  ·  "+bold+"Esc"+reset+dim+" back"+reset, w),
+		boxEmpty(w),
+		boxBottom(w),
+	)
+	writeLines(&b, lines)
+	fmt.Print(b.String())
+}
+
+// RenderCustomScenarioPage renders the custom scenario creation screen
+// with writing tips and a text input prompt.
+func RenderCustomScenarioPage() {
 	w, _ := getTermSize()
 	if w > 120 {
 		w = 120
@@ -723,18 +923,123 @@ func RenderLanguageList(languages []api.Language) {
 
 	lines := []string{
 		boxTop(w),
-		boxLine(bold+cyan+"  Lark"+reset+dim+"  ·  Choose a Language"+reset, w),
+		boxLine(bold+cyan+"  Lark"+reset+dim+"  ·  Custom Scenario"+reset, w),
+		boxDiv(w),
+		boxEmpty(w),
+		boxLine(bold+yellow+"  Tips for a great scenario:"+reset, w),
+		boxEmpty(w),
+		boxLine("  "+cyan+"1."+reset+" Set a scene with a location, goal, and an NPC to talk to", w),
+		boxLine("     "+dim+"e.g. \"Haggle with a grumpy merchant at a Moroccan souk\""+reset, w),
+		boxEmpty(w),
+		boxLine("  "+cyan+"2."+reset+" Pick a situation that forces back-and-forth conversation", w),
+		boxLine("     "+dim+"e.g. \"Your train is cancelled and you need alternatives\""+reset, w),
+		boxEmpty(w),
+		boxLine("  "+cyan+"3."+reset+" Mention the language level you want", w),
+		boxLine("     "+dim+"e.g. \"Use only simple beginner-friendly vocabulary\""+reset, w),
+		boxEmpty(w),
+		boxLine("  "+cyan+"4."+reset+" Add a fun twist to keep things interesting", w),
+		boxLine("     "+dim+"e.g. \"Order food at a medieval banquet as a time traveler\""+reset, w),
+		boxEmpty(w),
+		boxDiv(w),
+		boxLine("  "+dim+"Describe your scenario below, or press "+bold+"Esc"+reset+dim+" to go back"+reset, w),
+		boxEmpty(w),
+		boxBottom(w),
+	}
+	writeLines(&b, lines)
+
+	b.WriteString(showCursor)
+	b.WriteString("> ")
+	fmt.Print(b.String())
+}
+
+// settingsLabels are the display names for each setting toggle.
+var settingsLabels = []string{
+	"Show translations",
+	"Show dialog choices",
+	"Show vocabulary hints",
+	"Show grammar corrections",
+}
+
+// settingValue returns whether the i-th setting is enabled (shown).
+func settingValue(s *Settings, i int) bool {
+	switch i {
+	case 0:
+		return !s.HideTranslations
+	case 1:
+		return !s.HideChoices
+	case 2:
+		return !s.HideVocabulary
+	case 3:
+		return !s.HideGrammar
+	}
+	return true
+}
+
+// toggleSetting flips the i-th setting.
+func toggleSetting(s *Settings, i int) {
+	switch i {
+	case 0:
+		s.HideTranslations = !s.HideTranslations
+	case 1:
+		s.HideChoices = !s.HideChoices
+	case 2:
+		s.HideVocabulary = !s.HideVocabulary
+	case 3:
+		s.HideGrammar = !s.HideGrammar
+	}
+}
+
+// RenderSettingsPage renders the settings toggle screen.
+func RenderSettingsPage(settings *Settings, cursorIdx int) {
+	w, _ := getTermSize()
+	if w > 120 {
+		w = 120
+	}
+	if w < 40 {
+		w = 40
+	}
+
+	var b strings.Builder
+	b.WriteString(clearSeq)
+	b.WriteString(hideCursor)
+
+	lines := []string{
+		boxTop(w),
+		boxLine(bold+cyan+"  Lark"+reset+dim+"  ·  Settings"+reset, w),
 		boxDiv(w),
 		boxEmpty(w),
 	}
-	for i, l := range languages {
-		lines = append(lines,
-			boxLine(fmt.Sprintf("  %s%d)%s %s", bold+green, i+1, reset, l.Name), w),
-		)
+	for i, label := range settingsLabels {
+		on := settingValue(settings, i)
+		var tag string
+		if on {
+			tag = bold + green + "[ON]" + reset
+		} else {
+			tag = bold + red + "[OFF]" + reset
+		}
+		if i == cursorIdx {
+			lines = append(lines,
+				boxLine(fmt.Sprintf("  %s%s▸ %-28s %s%s", highlight+bold, white, label, reset+highlight+bold, func() string {
+					if on {
+						return green + "[ON]"
+					}
+					return red + "[OFF]"
+				}()+reset), w),
+			)
+		} else {
+			lines = append(lines,
+				boxLine(fmt.Sprintf("    %-28s %s", label, tag), w),
+			)
+		}
 	}
-	lines = append(lines, boxEmpty(w), boxBottom(w))
+	lines = append(lines,
+		boxEmpty(w),
+		boxDiv(w),
+		boxLine("  "+dim+bold+"↑↓"+reset+dim+" select  ·  "+bold+"Enter"+reset+dim+" toggle  ·  "+bold+"Esc"+reset+dim+" back"+reset, w),
+		boxEmpty(w),
+		boxBottom(w),
+	)
 	writeLines(&b, lines)
-	b.WriteString("\n> ")
 	fmt.Print(b.String())
 }
 

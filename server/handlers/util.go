@@ -22,31 +22,37 @@ func generateID() string {
 	return hex.EncodeToString(b)
 }
 
-// resolveScenario returns a Scenario for the request. If ScenarioID is "custom"
-// and CustomPrompt is set, it builds an ad-hoc scenario from the prompt.
+// resolveScenario returns a Scenario for the request. If CustomPrompt is set
+// and the ID is not in the catalog, it builds an ad-hoc scenario from the prompt.
 func resolveScenario(req *api.StartRequest) *api.Scenario {
-	if req.ScenarioID == "custom" && req.CustomPrompt != "" {
+	if s := api.ScenarioByID(req.ScenarioID); s != nil {
+		return s
+	}
+	if req.CustomPrompt != "" {
 		return &api.Scenario{
-			ID:          "custom",
+			ID:          req.ScenarioID,
 			Name:        req.CustomPrompt,
 			Description: req.CustomPrompt,
 			Difficulty:  api.DifficultyBeginner,
 		}
 	}
-	return api.ScenarioByID(req.ScenarioID)
+	return nil
 }
 
 // resolveSessionScenario reconstructs a Scenario from a session. For custom
 // scenarios it rebuilds from the stored prompt; for catalog scenarios it
 // looks up by ID.
 func resolveSessionScenario(sess *session.Session) *api.Scenario {
-	if sess.ScenarioID == "custom" && sess.CustomPrompt != "" {
+	if s := api.ScenarioByID(sess.ScenarioID); s != nil {
+		return s
+	}
+	if sess.CustomPrompt != "" {
 		return &api.Scenario{
-			ID:          "custom",
+			ID:          sess.ScenarioID,
 			Name:        sess.CustomPrompt,
 			Description: sess.CustomPrompt,
 			Difficulty:  api.DifficultyBeginner,
 		}
 	}
-	return api.ScenarioByID(sess.ScenarioID)
+	return nil
 }

@@ -2,43 +2,70 @@ import TerminalMockup from "./TerminalMockup";
 
 export default function Hero() {
   return (
-    <section className="relative flex min-h-screen items-center pt-20">
-      {/* Background gradient */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--color-accent)_0%,_transparent_50%)] opacity-[0.07]" />
-
-      <div className="mx-auto grid max-w-6xl gap-12 px-6 lg:grid-cols-2 lg:gap-16">
-        {/* Left: Copy */}
-        <div className="flex flex-col justify-center">
-          <h1 className="text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">
-            Learn Languages
-            <br />
-            <span className="gradient-text">Through Adventure</span>
-          </h1>
-          <p className="mt-6 max-w-lg text-lg text-text-dim">
-            A text-adventure game that teaches you real-world language skills
-            through immersive role-play scenarios. Practice ordering food,
-            checking into hotels, navigating cities, and more — all in your
-            target language.
-          </p>
-          <div className="mt-8 flex gap-4">
-            <a
-              href="#pricing"
-              className="rounded-md bg-accent px-6 py-3 font-semibold text-bg transition-colors hover:bg-accent-dim"
-            >
-              Get Started
-            </a>
-            <a
-              href="#features"
-              className="rounded-md border border-border px-6 py-3 font-semibold text-text-dim transition-colors hover:border-text-dim hover:text-text"
-            >
-              Learn More
-            </a>
-          </div>
+    <section className="relative min-h-screen pb-16 pt-20">
+      <div className="mx-auto max-w-4xl px-6">
+        {/* Command prompt */}
+        <div className="mb-8 text-sm">
+          <span className="text-accent">user@lark</span>
+          <span className="text-text-dim">:</span>
+          <span className="text-cyan">~</span>
+          <span className="text-text-dim">$ </span>
+          <span className="text-text">lark</span>
         </div>
 
-        {/* Right: Terminal */}
-        <div className="flex items-center">
+        {/* ASCII Art Logo */}
+        <pre className="text-glow-subtle text-sm leading-tight text-accent sm:text-base lg:text-lg">
+          {[
+            "  _                _    ",
+            " | |    __ _  _ __| | __",
+            " | |   / _` || '__| |/ /",
+            " | |__| (_| || |  |   < ",
+            " |_____\\__,_||_|  |_|\\_\\",
+          ].join("\n")}
+        </pre>
+
+        <p className="mb-8 mt-5 text-sm text-text-dim">
+          A Zork-inspired text-adventure game for learning languages.
+        </p>
+
+        <div className="mb-2 max-w-2xl text-sm leading-relaxed text-text">
+          <p>
+            You find yourself standing at the entrance of a language learning
+            adventure. Before you lies a world of{" "}
+            <span className="text-yellow">40 immersive scenarios</span> across{" "}
+            <span className="text-cyan">8 languages</span>. Practice ordering
+            food in Madrid, navigating the streets of Tokyo, or checking into a
+            hotel in Paris &mdash; all from your terminal.
+          </p>
+        </div>
+
+        <p className="mb-10 text-sm text-text-dim">
+          Type responses in your target language. Get instant grammar correction.
+          Learn vocabulary in context. No flashcards. No drills. Just adventure.
+        </p>
+
+        {/* Game demo */}
+        <div className="mb-10">
+          <div className="mb-2 text-xs text-text-dim">
+            <span className="text-accent">&gt;</span> demo
+          </div>
           <TerminalMockup />
+        </div>
+
+        {/* CTAs as terminal commands */}
+        <div className="flex flex-col gap-3 text-sm sm:flex-row">
+          <a
+            href="#shop"
+            className="inline-flex items-center gap-2 border border-accent px-5 py-2.5 text-accent transition-colors hover:bg-accent/10"
+          >
+            <span className="text-text-dim">&gt;</span> subscribe
+          </a>
+          <a
+            href="#features"
+            className="inline-flex items-center gap-2 border border-border px-5 py-2.5 text-text-dim transition-colors hover:border-text-dim hover:text-text"
+          >
+            <span className="text-text-dim">&gt;</span> help
+          </a>
         </div>
       </div>
     </section>

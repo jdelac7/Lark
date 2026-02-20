@@ -242,6 +242,15 @@ func (c *OpenRouterClient) sendStream(ctx context.Context, messages []orMessage,
 	return accumulated.String(), nil
 }
 
+// BuildStartHistory reconstructs OpenRouter-format conversation history from a cached first-turn response.
+func (c *OpenRouterClient) BuildStartHistory(scenario *api.Scenario, lang *api.Language, responseText string) any {
+	return []orMessage{
+		{Role: "system", Content: SystemPrompt(scenario, lang)},
+		{Role: "user", Content: ScenarioSeed(scenario, lang)},
+		{Role: "assistant", Content: responseText},
+	}
+}
+
 func (c *OpenRouterClient) StartScenarioStream(ctx context.Context, scenario *api.Scenario, lang *api.Language, callback StreamCallback) (*api.GameMessage, any, error) {
 	t0 := time.Now()
 	log.Printf("[openrouter] StartScenarioStream model=%s scenario=%s lang=%s", c.model, scenario.ID, lang.Code)
