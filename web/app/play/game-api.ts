@@ -1,5 +1,4 @@
-const SERVER_URL =
-  process.env.NEXT_PUBLIC_GAME_SERVER_URL || "http://localhost:9292";
+const SERVER_URL = "/game-api";
 
 // Types mirroring Go api/types.go
 
@@ -78,13 +77,13 @@ type StreamEvent = StreamToken | StreamDone | StreamError;
 // Fetch helpers
 
 export async function getScenarios(): Promise<Scenario[]> {
-  const res = await fetch(`${SERVER_URL}/api/v1/scenarios`);
+  const res = await fetch(`${SERVER_URL}/scenarios`);
   if (!res.ok) throw new Error("Failed to fetch scenarios");
   return res.json();
 }
 
 export async function getLanguages(): Promise<Language[]> {
-  const res = await fetch(`${SERVER_URL}/api/v1/languages`);
+  const res = await fetch(`${SERVER_URL}/languages`);
   if (!res.ok) throw new Error("Failed to fetch languages");
   return res.json();
 }
@@ -96,7 +95,7 @@ export async function startScenarioStream(
   customPrompt?: string,
   explanationLang?: string
 ): Promise<{ sessionId: string; message: GameMessage }> {
-  const res = await fetch(`${SERVER_URL}/api/v1/scenarios/start/stream`, {
+  const res = await fetch(`${SERVER_URL}/scenarios/start/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -124,7 +123,7 @@ export async function sendChoiceStream(
   choiceIndex: number,
   onToken: (token: string) => void
 ): Promise<PlayerInputResponse> {
-  const res = await fetch(`${SERVER_URL}/api/v1/game/input/stream`, {
+  const res = await fetch(`${SERVER_URL}/game/input/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -151,7 +150,7 @@ export async function sendFreeTextStream(
   text: string,
   onToken: (token: string) => void
 ): Promise<PlayerInputResponse> {
-  const res = await fetch(`${SERVER_URL}/api/v1/game/input/stream`, {
+  const res = await fetch(`${SERVER_URL}/game/input/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

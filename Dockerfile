@@ -19,9 +19,7 @@ RUN npm ci
 COPY web/ ./
 
 # Provide build-time defaults so next build succeeds
-# (runtime values come from env vars at container start)
 ENV AUTH_SECRET=build-placeholder
-ENV NEXT_PUBLIC_GAME_SERVER_URL=http://localhost:9292
 
 RUN npm run build
 
@@ -29,7 +27,7 @@ RUN npm run build
 FROM node:20-bookworm-slim AS production
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
+    ca-certificates bash \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -47,7 +45,7 @@ RUN mkdir -p /app/data /app/web/data
 
 # Entrypoint script
 COPY <<'ENTRYPOINT' /app/start.sh
-#!/bin/sh
+#!/bin/bash
 set -e
 
 # Symlink shared data directory so both services see the same DBs
@@ -63,6 +61,7 @@ cd /app/web
 HOSTNAME=0.0.0.0 \
 PORT=${WEB_PORT:-3000} \
 COST_DB_PATH=/app/cost.db \
+GAME_SERVER_INTERNAL_URL=http://localhost:9292 \
 node server.js &
 WEB_PID=$!
 
