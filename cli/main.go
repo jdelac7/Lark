@@ -59,7 +59,7 @@ func main() {
 
 		serverURL := os.Getenv("LARK_SERVER")
 		if serverURL == "" {
-			serverURL = "http://localhost:9292"
+			serverURL = "https://lark.black"
 		}
 
 		playerID := os.Getenv("LARK_PLAYER_ID")
