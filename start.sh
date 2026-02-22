@@ -16,20 +16,26 @@ cd /app
 PORT=${GO_PORT} ./lark-server &
 GO_PID=$!
 
-# Start Next.js — set HOSTNAME inline only so it doesn't leak to NextAuth
+# Write .env for Next.js standalone — it doesn't inherit Docker env vars reliably
 cd /app/web
-export COST_DB_PATH=/app/cost.db
-export GAME_SERVER_INTERNAL_URL=http://localhost:${GO_PORT}
-export AUTH_URL="${AUTH_URL:-${NEXTAUTH_URL:-https://lark.black}}"
-export PORT=${WEB_PORT}
+cat > .env <<EOF
+AUTH_URL=${AUTH_URL:-${NEXTAUTH_URL:-https://lark.black}}
+AUTH_TRUST_HOST=true
+AUTH_SECRET=${AUTH_SECRET}
+AUTH_GOOGLE_ID=${AUTH_GOOGLE_ID}
+AUTH_GOOGLE_SECRET=${AUTH_GOOGLE_SECRET}
+POLAR_ACCESS_TOKEN=${POLAR_ACCESS_TOKEN}
+POLAR_WEBHOOK_SECRET=${POLAR_WEBHOOK_SECRET}
+POLAR_ORGANIZATION_ID=${POLAR_ORGANIZATION_ID}
+NEXT_PUBLIC_POLAR_PRODUCT_ID=${NEXT_PUBLIC_POLAR_PRODUCT_ID}
+NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-https://lark.black}
+COST_DB_PATH=/app/cost.db
+GAME_SERVER_INTERNAL_URL=http://localhost:${GO_PORT}
+EOF
 
-# Debug: print env vars to logs
-echo "AUTH_URL=${AUTH_URL}"
-echo "AUTH_GOOGLE_ID=${AUTH_GOOGLE_ID:+set}"
-echo "AUTH_SECRET=${AUTH_SECRET:+set}"
-echo "ENV vars count: $(env | wc -l)"
+echo "Wrote .env with $(wc -l < .env) vars"
 
-HOSTNAME=0.0.0.0 node server.js &
+HOSTNAME=0.0.0.0 PORT=${WEB_PORT} node server.js &
 WEB_PID=$!
 
 # Wait for either to exit
