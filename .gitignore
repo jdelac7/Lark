@@ -36,6 +36,9 @@ server/cost.db-wal
 *.swo
 *~
 
+# Release binaries
+dist/
+
 # OS
 .DS_Store
 Thumbs.db

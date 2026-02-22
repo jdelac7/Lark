@@ -78,7 +78,7 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
                 <div>
                   <p>Install Lark (if you haven&apos;t already):</p>
                   <code className="mt-1 block rounded border border-border bg-bg px-3 py-2 text-green">
-                    curl -fsSL https://lark.joshburns.xyz/install.sh | sh
+                    curl -fsSL https://lark.black/install.sh | sh
                   </code>
                 </div>
               </div>

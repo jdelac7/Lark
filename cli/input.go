@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"syscall"
 	"time"
 	"unicode/utf8"
 
@@ -202,17 +201,7 @@ const (
 	keyEsc   = "\x1b"
 )
 
-// byteAvailable checks whether at least one byte is ready to read from stdin
-// within the given timeout. Used to distinguish bare Escape from the start
-// of an arrow-key escape sequence.
-func byteAvailable(timeout time.Duration) bool {
-	fd := int(os.Stdin.Fd())
-	var fds syscall.FdSet
-	fds.Bits[fd/64] |= 1 << (uint(fd) % 64)
-	tv := syscall.NsecToTimeval(int64(timeout))
-	n, err := syscall.Select(fd+1, &fds, nil, nil, &tv)
-	return err == nil && n > 0
-}
+// byteAvailable is defined in input_select_*.go (platform-specific).
 
 // readKeyEvent reads a single key event in raw mode.
 // Returns arrow sentinels for arrow keys, keyEnter for bare Enter,

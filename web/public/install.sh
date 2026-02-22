@@ -2,9 +2,9 @@
 set -e
 
 # Lark CLI installer
-# Usage: curl -fsSL https://lark.joshburns.xyz/install.sh | sh
+# Usage: curl -fsSL https://lark.black/install.sh | sh
 
-GITHUB_REPO="joshburnsxyz/lark"
+GITHUB_REPO="jdelac7/Lark"
 INSTALL_DIR="${LARK_INSTALL_DIR:-$HOME/.local/bin}"
 
 # Colors (disabled if not a terminal)
@@ -158,7 +158,7 @@ main() {
     esac
 
     printf "\n${BOLD}Get started:${RESET}\n\n"
-    printf "  ${CYAN}1.${RESET} Subscribe at ${CYAN}https://lark.joshburns.xyz${RESET} (\$2.99/month)\n"
+    printf "  ${CYAN}1.${RESET} Subscribe at ${CYAN}https://lark.black${RESET} (\$2.99/month)\n"
     printf "  ${CYAN}2.${RESET} Activate:  ${GREEN}lark activate YOUR-LICENSE-KEY${RESET}\n"
     printf "  ${CYAN}3.${RESET} Play:      ${GREEN}lark${RESET}\n\n"
 }

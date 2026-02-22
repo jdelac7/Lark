@@ -23,7 +23,7 @@ export default function HowItWorks() {
           </div>
           <div className="border border-border bg-bg-secondary p-4">
             <div className="text-green">
-              $ curl -fsSL https://lark.joshburns.xyz/install.sh | sh
+              $ curl -fsSL https://lark.black/install.sh | sh
             </div>
             <div className="mt-2 text-accent">
               ✓ Lark installed to ~/.local/bin/lark
@@ -90,7 +90,7 @@ export default function HowItWorks() {
               </div>
               <div className="border border-border bg-bg-secondary p-4">
                 <div className="text-green">
-                  $ open https://lark.joshburns.xyz
+                  $ open https://lark.black
                 </div>
                 <div className="mt-2 text-text-dim">
                   &rarr; Subscribe for $2.99/month
