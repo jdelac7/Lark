@@ -9,6 +9,7 @@ web/data
 *.db-wal
 prompt_logs
 server/prompt_logs
+dist
 .git
 .idea
 .vscode
