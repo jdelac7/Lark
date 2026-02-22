@@ -16,15 +16,20 @@ cd /app
 PORT=${GO_PORT} ./lark-server &
 GO_PID=$!
 
-# Start Next.js
+# Start Next.js — set HOSTNAME inline only so it doesn't leak to NextAuth
 cd /app/web
 export COST_DB_PATH=/app/cost.db
 export GAME_SERVER_INTERNAL_URL=http://localhost:${GO_PORT}
-export HOSTNAME=0.0.0.0
-export PORT=${WEB_PORT}
-# Ensure NextAuth uses the public URL, not the internal HOSTNAME
 export AUTH_URL="${AUTH_URL:-${NEXTAUTH_URL:-https://lark.black}}"
-node server.js &
+export PORT=${WEB_PORT}
+
+# Debug: print env vars to logs
+echo "AUTH_URL=${AUTH_URL}"
+echo "AUTH_GOOGLE_ID=${AUTH_GOOGLE_ID:+set}"
+echo "AUTH_SECRET=${AUTH_SECRET:+set}"
+echo "ENV vars count: $(env | wc -l)"
+
+HOSTNAME=0.0.0.0 node server.js &
 WEB_PID=$!
 
 # Wait for either to exit
