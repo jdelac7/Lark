@@ -82,17 +82,18 @@ func (c *Client) GetLanguages() ([]api.Language, error) {
 }
 
 // StartScenario begins a new scenario session.
-func (c *Client) StartScenario(scenarioID, language string) (*api.StartResponse, error) {
-	return c.StartScenarioCustom(scenarioID, language, "")
+func (c *Client) StartScenario(scenarioID, language, explanationLang string) (*api.StartResponse, error) {
+	return c.StartScenarioCustom(scenarioID, language, "", explanationLang)
 }
 
 // StartScenarioCustom begins a scenario session, optionally with a custom prompt.
-func (c *Client) StartScenarioCustom(scenarioID, language, customPrompt string) (*api.StartResponse, error) {
+func (c *Client) StartScenarioCustom(scenarioID, language, customPrompt, explanationLang string) (*api.StartResponse, error) {
 	var resp api.StartResponse
 	err := c.do("POST", "/api/v1/scenarios/start", api.StartRequest{
-		ScenarioID:   scenarioID,
-		Language:     language,
-		CustomPrompt: customPrompt,
+		ScenarioID:      scenarioID,
+		Language:        language,
+		CustomPrompt:    customPrompt,
+		ExplanationLang: explanationLang,
 	}, &resp)
 	return &resp, err
 }
@@ -221,17 +222,18 @@ type streamDoneInputResponse struct {
 }
 
 // StreamStartScenario begins a new scenario with SSE streaming.
-func (c *Client) StreamStartScenario(scenarioID, language string, onToken func(string)) (*api.StartResponse, error) {
-	return c.StreamStartScenarioCustom(scenarioID, language, "", onToken)
+func (c *Client) StreamStartScenario(scenarioID, language, explanationLang string, onToken func(string)) (*api.StartResponse, error) {
+	return c.StreamStartScenarioCustom(scenarioID, language, "", explanationLang, onToken)
 }
 
 // StreamStartScenarioCustom begins a scenario with SSE streaming, optionally with a custom prompt.
-func (c *Client) StreamStartScenarioCustom(scenarioID, language, customPrompt string, onToken func(string)) (*api.StartResponse, error) {
+func (c *Client) StreamStartScenarioCustom(scenarioID, language, customPrompt, explanationLang string, onToken func(string)) (*api.StartResponse, error) {
 	var done streamDoneStartResponse
 	err := c.doStream("POST", "/api/v1/scenarios/start/stream", api.StartRequest{
-		ScenarioID:   scenarioID,
-		Language:     language,
-		CustomPrompt: customPrompt,
+		ScenarioID:      scenarioID,
+		Language:        language,
+		CustomPrompt:    customPrompt,
+		ExplanationLang: explanationLang,
 	}, onToken, &done)
 	if err != nil {
 		return nil, err

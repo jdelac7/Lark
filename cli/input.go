@@ -196,6 +196,8 @@ const (
 	keyDown  = "\x1b[B"
 	keyRight = "\x1b[C"
 	keyLeft  = "\x1b[D"
+	keyPgUp  = "\x1b[5~"
+	keyPgDn  = "\x1b[6~"
 	keyEnter = "\r"
 	keyEsc   = "\x1b"
 )
@@ -256,6 +258,18 @@ func readKeyEvent() string {
 					return keyRight
 				case 'D':
 					return keyLeft
+				case '5':
+					// PgUp: \x1b[5~
+					if b4, err := readByte(); err == nil && b4 == '~' {
+						return keyPgUp
+					}
+					return ""
+				case '6':
+					// PgDn: \x1b[6~
+					if b4, err := readByte(); err == nil && b4 == '~' {
+						return keyPgDn
+					}
+					return ""
 				}
 			}
 			// Consume rest of unknown escape sequence
@@ -540,6 +554,8 @@ func ReadListChoice(count int, renderFn func(cursor int)) int {
 // columns. Returns the selected index, -1 on Ctrl-C/Escape (quit),
 // or -2 when the user presses 's' (open settings).
 func ReadBannerLanguageChoice(count int, renderFn func(cursor int)) int {
+	// count is number of popular languages; total items = count + 1 ("Other Languages")
+	total := count + 1
 	cursor := 0
 	renderFn(cursor)
 
@@ -549,22 +565,33 @@ func ReadBannerLanguageChoice(count int, renderFn func(cursor int)) int {
 		case ctrlC, keyEsc:
 			return -1
 		case keyDown:
-			if cursor+2 < count {
-				cursor += 2
+			// In two-column layout, down moves by 2; last item is "Other" at index=count
+			next := cursor + 2
+			if next >= count {
+				next = count // jump to "Other Languages"
+			}
+			if next < total {
+				cursor = next
 			}
 			renderFn(cursor)
 		case keyUp:
-			if cursor-2 >= 0 {
+			if cursor == count {
+				// From "Other", go to last row of the grid
+				cursor = count - 1
+				if cursor < 0 {
+					cursor = 0
+				}
+			} else if cursor-2 >= 0 {
 				cursor -= 2
 			}
 			renderFn(cursor)
 		case keyRight:
-			if cursor%2 == 0 && cursor+1 < count {
+			if cursor < count && cursor%2 == 0 && cursor+1 < count {
 				cursor++
 			}
 			renderFn(cursor)
 		case keyLeft:
-			if cursor%2 == 1 {
+			if cursor < count && cursor%2 == 1 {
 				cursor--
 			}
 			renderFn(cursor)
@@ -576,9 +603,68 @@ func ReadBannerLanguageChoice(count int, renderFn func(cursor int)) int {
 			if key == "s" || key == "S" {
 				return -2
 			}
-			if n, err := strconv.Atoi(key); err == nil && n >= 1 && n <= count {
+			if n, err := strconv.Atoi(key); err == nil && n >= 1 && n <= total {
 				return n - 1
 			}
+		}
+	}
+}
+
+// ReadAllLanguagesChoice runs the paginated all-languages selector.
+// Returns selected index into the full languages slice, or -1 on Esc.
+func ReadAllLanguagesChoice(count int, renderFn func(cursor, page int)) int {
+	_, h := getTermSize()
+	itemsPerPage := allLangsPerPage(h)
+	pages := totalPages(count, itemsPerPage)
+	cursor := 0
+	page := 0
+	renderFn(cursor, page)
+
+	for {
+		key := readKeyEvent()
+		switch key {
+		case ctrlC, keyEsc:
+			return -1
+		case keyDown:
+			if cursor+2 < count {
+				cursor += 2
+			}
+			page = cursor / itemsPerPage
+			renderFn(cursor, page)
+		case keyUp:
+			if cursor-2 >= 0 {
+				cursor -= 2
+			}
+			page = cursor / itemsPerPage
+			renderFn(cursor, page)
+		case keyRight:
+			if cursor%2 == 0 && cursor+1 < count {
+				cursor++
+			}
+			page = cursor / itemsPerPage
+			renderFn(cursor, page)
+		case keyLeft:
+			if cursor%2 == 1 {
+				cursor--
+			}
+			page = cursor / itemsPerPage
+			renderFn(cursor, page)
+		case keyPgDn:
+			if page < pages-1 {
+				page++
+				cursor = page * itemsPerPage
+			}
+			renderFn(cursor, page)
+		case keyPgUp:
+			if page > 0 {
+				page--
+				cursor = page * itemsPerPage
+			}
+			renderFn(cursor, page)
+		case keyEnter:
+			return cursor
+		case "":
+			continue
 		}
 	}
 }

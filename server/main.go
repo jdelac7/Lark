@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/joshburnsxyz/lark/server/ai"
+	"github.com/joshburnsxyz/lark/server/cost"
 	"github.com/joshburnsxyz/lark/server/handlers"
 	"github.com/joshburnsxyz/lark/server/progress"
 	"github.com/joshburnsxyz/lark/server/session"
@@ -41,17 +42,34 @@ func main() {
 	// Wrap AI client with response cache for premade scenarios
 	client = ai.NewCachedClient(client)
 
+	// Wrap with prompt logger for testing/prompt improvement
+	client = ai.NewLoggingClient(client, "prompt_logs")
+
 	sessionStore := session.NewMemoryStore()
 	progressStore := progress.NewMemoryStore()
+	costStore, err := cost.NewSQLiteStore("cost.db")
+	if err != nil {
+		log.Fatalf("Failed to open cost database: %v", err)
+	}
+	defer costStore.Close()
+
+	eventRecorder, err := cost.NewEventRecorder(costStore.DB())
+	if err != nil {
+		log.Fatalf("Failed to create event recorder: %v", err)
+	}
 
 	scenarioHandler := &handlers.ScenarioHandler{
 		AI:       client,
 		Sessions: sessionStore,
+		Cost:     costStore,
+		Events:   eventRecorder,
 	}
 	gameHandler := &handlers.GameHandler{
 		AI:       client,
 		Sessions: sessionStore,
 		Progress: progressStore,
+		Cost:     costStore,
+		Events:   eventRecorder,
 	}
 	progressHandler := &handlers.ProgressHandler{
 		Progress: progressStore,

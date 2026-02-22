@@ -35,46 +35,59 @@ func main() {
 		case "deactivate":
 			handleDeactivateCommand()
 			return
+		case "apikey":
+			handleAPIKeyCommand(os.Args[1:])
+			return
 		}
 	}
 
-	// License gate
-	if err := checkLicense(); err != nil {
-		fmt.Fprintf(os.Stderr, "\n  %s\n\n  Get your license at: %s\n\n", err, websiteURL)
-		os.Exit(1)
+	// Mode selection: BYOK (local) vs Server (licensed)
+	var gameClient GameClient
+	var byokMode bool
+
+	apiKey := getAPIKey()
+	if apiKey != "" {
+		// BYOK mode: call OpenRouter directly, no server needed
+		byokMode = true
+		gameClient = NewLocalClient(apiKey, getBYOKModel())
+	} else {
+		// Server mode: require license
+		if err := checkLicense(); err != nil {
+			fmt.Fprintf(os.Stderr, "\n  %s\n\n  Get your license at: %s\n  Or bring your own key: lark apikey <openrouter-key>\n\n", err, websiteURL)
+			os.Exit(1)
+		}
+
+		serverURL := os.Getenv("LARK_SERVER")
+		if serverURL == "" {
+			serverURL = "http://localhost:9292"
+		}
+
+		playerID := os.Getenv("LARK_PLAYER_ID")
+		if playerID == "" {
+			b := make([]byte, 16)
+			rand.Read(b)
+			playerID = hex.EncodeToString(b)
+		}
+
+		gameClient = NewClient(serverURL, playerID)
 	}
 
 	EnterAltScreen()
 	defer LeaveAltScreen()
 
-	serverURL := os.Getenv("LARK_SERVER")
-	if serverURL == "" {
-		serverURL = "http://localhost:9292"
-	}
-
-	playerID := os.Getenv("LARK_PLAYER_ID")
-	if playerID == "" {
-		b := make([]byte, 16)
-		rand.Read(b)
-		playerID = hex.EncodeToString(b)
-	}
-
-	client := NewClient(serverURL, playerID)
-
 	// Show banner while connecting
 	RenderBanner()
 
-	scenarios, err := client.GetScenarios()
+	scenarios, err := gameClient.GetScenarios()
 	if err != nil {
-		PrintError("Failed to connect to server: " + err.Error())
-		PrintError("Make sure the Lark server is running at " + client.baseURL)
+		PrintError("Failed to load scenarios: " + err.Error())
 		readInput()
 		return
 	}
 
-	languages, err := client.GetLanguages()
+	languages, err := gameClient.GetLanguages()
 	if err != nil {
-		PrintError("Failed to fetch languages: " + err.Error())
+		PrintError("Failed to load languages: " + err.Error())
 		readInput()
 		return
 	}
@@ -83,7 +96,7 @@ func main() {
 	appSettings = &saveData.Settings
 
 	for {
-		if !playSession(client, scenarios, languages, saveData) {
+		if !playSession(gameClient, byokMode, scenarios, languages, saveData) {
 			break
 		}
 	}
@@ -92,10 +105,15 @@ func main() {
 // playSession runs the selection flow (language → category → scenario → game)
 // with go-back support at each step. Returns true if the game completed
 // normally and the caller should offer "play again".
-func playSession(client *Client, scenarios []api.Scenario, languages []api.Language, saveData *SaveData) bool {
-	langNames := make([]string, len(languages))
+func playSession(client GameClient, byokMode bool, scenarios []api.Scenario, languages []api.Language, saveData *SaveData) bool {
+	// Popular languages (first 8 from PopularLanguages)
+	popularNames := make([]string, len(api.PopularLanguages))
+	for i, l := range api.PopularLanguages {
+		popularNames[i] = l.Name
+	}
+	allNames := make([]string, len(languages))
 	for i, l := range languages {
-		langNames[i] = l.Name
+		allNames[i] = l.Name
 	}
 
 	var lang api.Language
@@ -107,10 +125,10 @@ func playSession(client *Client, scenarios []api.Scenario, languages []api.Langu
 	step := 0
 	for {
 		switch step {
-		// ── Step 0: Language selection (banner + two-column list) ──
+		// ── Step 0: Language selection (banner + popular languages) ──
 		case 0:
-			idx := ReadBannerLanguageChoice(len(langNames), func(cursor int) {
-				RenderBannerLanguages(langNames, cursor)
+			idx := ReadBannerLanguageChoice(len(popularNames), func(cursor int) {
+				RenderBannerLanguages(popularNames, cursor)
 			})
 			if idx == -1 {
 				return false
@@ -120,7 +138,18 @@ func playSession(client *Client, scenarios []api.Scenario, languages []api.Langu
 				ReadSettings(&saveData.Settings, func() { saveSaveData(saveData) })
 				continue
 			}
-			lang = languages[idx]
+			if idx == len(popularNames) {
+				// "Other Languages" selected — go to full list
+				allIdx := ReadAllLanguagesChoice(len(allNames), func(cursor, page int) {
+					RenderAllLanguagesPage(allNames, cursor, page)
+				})
+				if allIdx == -1 {
+					continue // back to popular language selection
+				}
+				lang = languages[allIdx]
+			} else {
+				lang = api.PopularLanguages[idx]
+			}
 			step = 1
 
 		// ── Step 1: Category selection ──
@@ -201,31 +230,34 @@ func playSession(client *Client, scenarios []api.Scenario, languages []api.Langu
 
 		// ── Step 3: Check saved session / start game ──
 		case 3:
-			saved := saveData.GetSession(scenario.ID, lang.Code)
-			if saved != nil {
-				continueChoices := []string{"Continue where you left off", "Start again"}
-				choice := ReadListChoice(len(continueChoices), func(cursor int) {
-					RenderContinuePrompt(scenario.Name, continueChoices, cursor)
-				})
-				if choice == -1 {
-					return false
-				}
-				if choice == -2 {
-					step = 2 // back to scenario selection
-					continue
-				}
-				if choice == 0 {
-					if !resumeSession(client, scenario, lang, saveData, saved) {
+			// BYOK mode doesn't support session resume (no server-side sessions)
+			if !byokMode {
+				saved := saveData.GetSession(scenario.ID, lang.Code)
+				if saved != nil {
+					continueChoices := []string{"Continue where you left off", "Start again"}
+					choice := ReadListChoice(len(continueChoices), func(cursor int) {
+						RenderContinuePrompt(scenario.Name, continueChoices, cursor)
+					})
+					if choice == -1 {
 						return false
 					}
-					step = 2
-					continue
+					if choice == -2 {
+						step = 2 // back to scenario selection
+						continue
+					}
+					if choice == 0 {
+						if !resumeSession(client, scenario, lang, saveData, saved) {
+							return false
+						}
+						step = 2
+						continue
+					}
+					// Start again — clear saved session
+					saveData.ClearSession(scenario.ID, lang.Code)
+					saveSaveData(saveData)
 				}
-				// Start again — clear saved session
-				saveData.ClearSession(scenario.ID, lang.Code)
-				saveSaveData(saveData)
 			}
-			if !startFreshSession(client, scenario, lang, customPrompt, saveData) {
+			if !startFreshSession(client, byokMode, scenario, lang, customPrompt, saveData) {
 				return false
 			}
 			step = 2
@@ -262,7 +294,9 @@ func playSession(client *Client, scenarios []api.Scenario, languages []api.Langu
 	}
 }
 
-func startFreshSession(client *Client, scenario api.Scenario, lang api.Language, customPrompt string, saveData *SaveData) bool {
+func startFreshSession(client GameClient, byokMode bool, scenario api.Scenario, lang api.Language, customPrompt string, saveData *SaveData) bool {
+	explanationLang := explanationLangDisplay(&saveData.Settings)
+
 	ResetStreamState()
 	var rawJSON string
 	RenderStreamingScreen(scenario.Name, lang.Name, nil, "")
@@ -271,11 +305,11 @@ func startFreshSession(client *Client, scenario api.Scenario, lang api.Language,
 		RenderStreamingScreen(scenario.Name, lang.Name, nil, rawJSON)
 	}
 
-	startResp, err := client.StreamStartScenarioCustom(scenario.ID, lang.Code, customPrompt, onToken)
+	startResp, err := client.StreamStartScenarioCustom(scenario.ID, lang.Code, customPrompt, explanationLang, onToken)
 	if err != nil {
 		// Fallback to non-streaming
 		RenderThinkingScreen(scenario.Name, lang.Name)
-		startResp, err = client.StartScenarioCustom(scenario.ID, lang.Code, customPrompt)
+		startResp, err = client.StartScenarioCustom(scenario.ID, lang.Code, customPrompt, explanationLang)
 		if err != nil {
 			ShowCursor()
 			PrintError("Failed to start scenario: " + err.Error())
@@ -288,32 +322,34 @@ func startFreshSession(client *Client, scenario api.Scenario, lang api.Language,
 	msg := &startResp.Message
 	var lastCorrection *api.Correction
 
-	// Save initial session state
-	saveData.SaveSession(scenario.ID, lang.Code, &SavedSession{
-		SessionID:    sessionID,
-		ScenarioName: scenario.Name,
-		LastMessage:  msg,
-		CustomPrompt: customPrompt,
-	})
-	saveSaveData(saveData)
+	// Save initial session state (server mode only — BYOK has no server sessions)
+	if !byokMode {
+		saveData.SaveSession(scenario.ID, lang.Code, &SavedSession{
+			SessionID:    sessionID,
+			ScenarioName: scenario.Name,
+			LastMessage:  msg,
+			CustomPrompt: customPrompt,
+		})
+		saveSaveData(saveData)
+	}
 
-	return gameLoop(client, scenario, lang, sessionID, msg, lastCorrection, customPrompt, saveData)
+	return gameLoop(client, byokMode, scenario, lang, sessionID, msg, lastCorrection, customPrompt, saveData)
 }
 
-func resumeSession(client *Client, scenario api.Scenario, lang api.Language, saveData *SaveData, saved *SavedSession) bool {
+func resumeSession(client GameClient, scenario api.Scenario, lang api.Language, saveData *SaveData, saved *SavedSession) bool {
 	sessionID := saved.SessionID
 	msg := saved.LastMessage
 	lastCorrection := saved.LastCorrection
 
-	return gameLoop(client, scenario, lang, sessionID, msg, lastCorrection, saved.CustomPrompt, saveData)
+	return gameLoop(client, false, scenario, lang, sessionID, msg, lastCorrection, saved.CustomPrompt, saveData)
 }
 
-func gameLoop(client *Client, scenario api.Scenario, lang api.Language, sessionID string, msg *api.GameMessage, lastCorrection *api.Correction, customPrompt string, saveData *SaveData) bool {
+func gameLoop(client GameClient, byokMode bool, scenario api.Scenario, lang api.Language, sessionID string, msg *api.GameMessage, lastCorrection *api.Correction, customPrompt string, saveData *SaveData) bool {
 	for {
 		if msg.Finished {
 			RenderFinishedScreen(scenario.Name, lang.Name, msg)
 
-			// Mark completed, clear session, save
+			// Mark completed + save (works in both modes for checkmarks)
 			saveData.MarkCompleted(scenario.ID, lang.Code)
 			saveData.ClearSession(scenario.ID, lang.Code)
 			saveSaveData(saveData)
@@ -382,22 +418,24 @@ func gameLoop(client *Client, scenario api.Scenario, lang api.Language, sessionI
 				Message:      msg,
 				Correction:   lastCorrection,
 			})
-			PrintError("Server error, try again: " + err.Error())
+			PrintError("Error, try again: " + err.Error())
 			continue
 		}
 
 		lastCorrection = resp.Correction
 		msg = &resp.Message
 
-		// Save session state after each turn
-		saveData.SaveSession(scenario.ID, lang.Code, &SavedSession{
-			SessionID:      sessionID,
-			ScenarioName:   scenario.Name,
-			LastMessage:    msg,
-			LastCorrection: lastCorrection,
-			CustomPrompt:   customPrompt,
-		})
-		saveSaveData(saveData)
+		// Save session state after each turn (server mode only)
+		if !byokMode {
+			saveData.SaveSession(scenario.ID, lang.Code, &SavedSession{
+				SessionID:      sessionID,
+				ScenarioName:   scenario.Name,
+				LastMessage:    msg,
+				LastCorrection: lastCorrection,
+				CustomPrompt:   customPrompt,
+			})
+			saveSaveData(saveData)
+		}
 	}
 }
 

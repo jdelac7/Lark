@@ -108,7 +108,24 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
             </div>
           </div>
 
-          <div className="mt-8 text-center">
+          {/* Browser play prompt */}
+          <div className="mt-8 border-t border-border pt-6">
+            <div className="mb-2 text-sm font-semibold text-cyan">
+              Play in the browser
+            </div>
+            <p className="mb-4 text-sm text-text-dim">
+              Your subscription is linked to your account. You can play directly
+              in the browser — no install needed.
+            </p>
+            <a
+              href="/play"
+              className="block w-full border border-cyan py-3 text-center text-sm font-bold text-cyan transition-colors hover:bg-cyan/10"
+            >
+              &gt; PLAY NOW
+            </a>
+          </div>
+
+          <div className="mt-6 text-center">
             <a
               href="/"
               className="text-sm text-accent transition-colors hover:text-accent-dim"

@@ -407,40 +407,178 @@ func RenderThinkingScreen(scenarioName, language string) {
 // showing the last good state instead of dumping raw JSON.
 var lastParsedMsg *api.GameMessage
 
-// tryParsePartialJSON attempts to parse the accumulated raw JSON tokens into
-// a partial GameMessage. It tries the raw text first, then appends closing
-// brackets as a best-effort heuristic for incomplete JSON.
+// extractJSONString extracts the value of a JSON string field from raw text.
+// It looks for "key":"..." and returns the unescaped content, handling
+// escape sequences. Returns the value and true if found, even if the
+// closing quote hasn't arrived yet (partial string).
+func extractJSONString(raw, key string) (string, bool) {
+	needle := `"` + key + `":"`
+	idx := strings.Index(raw, needle)
+	if idx < 0 {
+		return "", false
+	}
+	start := idx + len(needle)
+
+	var b strings.Builder
+	escaped := false
+	for i := start; i < len(raw); i++ {
+		c := raw[i]
+		if escaped {
+			switch c {
+			case 'n':
+				b.WriteByte('\n')
+			case 't':
+				b.WriteByte('\t')
+			case '"':
+				b.WriteByte('"')
+			case '\\':
+				b.WriteByte('\\')
+			case '/':
+				b.WriteByte('/')
+			default:
+				b.WriteByte('\\')
+				b.WriteByte(c)
+			}
+			escaped = false
+			continue
+		}
+		if c == '\\' {
+			escaped = true
+			continue
+		}
+		if c == '"' {
+			return b.String(), true // complete string
+		}
+		b.WriteByte(c)
+	}
+	return b.String(), true // partial string (still streaming)
+}
+
+// extractJSONArray finds a JSON array value for "key":[...] and tries to parse
+// the completed items inside it. Returns whatever items parsed successfully.
+func extractJSONArray[T any](raw, key string) []T {
+	needle := `"` + key + `":[`
+	idx := strings.Index(raw, needle)
+	if idx < 0 {
+		return nil
+	}
+	arrStart := idx + len(needle) - 1 // points at '['
+
+	// Find matching ] by tracking nesting
+	depth := 0
+	inStr := false
+	esc := false
+	arrEnd := -1
+	for i := arrStart; i < len(raw); i++ {
+		c := raw[i]
+		if esc {
+			esc = false
+			continue
+		}
+		if inStr {
+			if c == '\\' {
+				esc = true
+			} else if c == '"' {
+				inStr = false
+			}
+			continue
+		}
+		switch c {
+		case '"':
+			inStr = true
+		case '[':
+			depth++
+		case ']':
+			depth--
+			if depth == 0 {
+				arrEnd = i + 1
+			}
+		}
+		if arrEnd > 0 {
+			break
+		}
+	}
+
+	// If array is complete, parse it directly
+	if arrEnd > 0 {
+		var items []T
+		if json.Unmarshal([]byte(raw[arrStart:arrEnd]), &items) == nil {
+			return items
+		}
+	}
+
+	// Array is incomplete — try to parse individual complete objects within it
+	// by finding each {...} at depth 1
+	var items []T
+	depth = 0
+	objStart := -1
+	inStr = false
+	esc = false
+	for i := arrStart + 1; i < len(raw); i++ {
+		c := raw[i]
+		if esc {
+			esc = false
+			continue
+		}
+		if inStr {
+			if c == '\\' {
+				esc = true
+			} else if c == '"' {
+				inStr = false
+			}
+			continue
+		}
+		switch c {
+		case '"':
+			inStr = true
+		case '{':
+			if depth == 0 {
+				objStart = i
+			}
+			depth++
+		case '}':
+			depth--
+			if depth == 0 && objStart >= 0 {
+				var item T
+				if json.Unmarshal([]byte(raw[objStart:i+1]), &item) == nil {
+					items = append(items, item)
+				}
+				objStart = -1
+			}
+		}
+	}
+	return items
+}
+
+// tryParsePartialJSON extracts fields directly from the raw JSON string
+// as it streams in, without requiring valid JSON.
 func tryParsePartialJSON(rawJSON string) *api.GameMessage {
 	raw := strings.TrimSpace(rawJSON)
 	if raw == "" {
 		return nil
 	}
 
-	// Try parsing as-is first (maybe the JSON is already complete)
+	// Try parsing complete JSON first
 	var msg api.GameMessage
 	if err := json.Unmarshal([]byte(raw), &msg); err == nil {
 		return &msg
 	}
 
-	// Best-effort: try closing open brackets/braces
-	suffixes := []string{
-		`"}`,
-		`}`,
-		`"]}`,
-		`]}`,
-		`"]}]}`,
-		`]}]}`,
-		`null}`,
-		`false}`,
-	}
-	for _, suffix := range suffixes {
-		attempt := raw + suffix
-		if err := json.Unmarshal([]byte(attempt), &msg); err == nil {
-			return &msg
-		}
+	// Extract fields progressively from the raw text
+	narrative, hasNarrative := extractJSONString(raw, "narrative")
+	if !hasNarrative {
+		return nil
 	}
 
-	return nil
+	msg.Narrative = narrative
+	msg.Translation, _ = extractJSONString(raw, "translation")
+	msg.NPCDialog, _ = extractJSONString(raw, "npcDialog")
+	msg.NPCDialogTranslation, _ = extractJSONString(raw, "npcDialogTranslation")
+	msg.Choices = extractJSONArray[api.Choice](raw, "choices")
+	msg.Vocabulary = extractJSONArray[api.VocabItem](raw, "vocabulary")
+	msg.Finished = strings.Contains(raw, `"finished":true`)
+
+	return &msg
 }
 
 // ResetStreamState should be called before starting a new stream to clear
@@ -636,7 +774,7 @@ func formatLangItem(languages []string, idx, cursorIdx, colWidth int) string {
 }
 
 // RenderBannerLanguages renders the banner with an integrated two-column
-// language selector below it.
+// language selector (popular languages + "Other Languages" option).
 func RenderBannerLanguages(languages []string, cursorIdx int) {
 	w, _ := getTermSize()
 	if w > 120 {
@@ -678,11 +816,80 @@ func RenderBannerLanguages(languages []string, cursorIdx int) {
 		lines = append(lines, boxLine(left+right, w))
 	}
 
+	// "Other Languages" option
+	otherLabel := fmt.Sprintf("  %s%d)%s %s", bold+green, len(languages)+1, reset, "Other Languages...")
+	if cursorIdx == len(languages) {
+		otherLabel = fmt.Sprintf("  %s%s▸ %s%s", highlight+bold, white, "Other Languages...", reset)
+	}
+	lines = append(lines, boxLine(otherLabel, w))
+
 	lines = append(lines,
 		boxEmpty(w),
 		boxDiv(w),
 		boxLine("  "+dim+bold+"↑↓←→"+reset+dim+" select  ·  "+bold+"Enter"+reset+dim+" confirm  ·  "+bold+"s"+reset+dim+" settings"+reset, w),
 		boxEmpty(w),
+		boxBottom(w),
+	)
+	writeLines(&b, lines)
+	fmt.Print(b.String())
+}
+
+// RenderAllLanguagesPage renders a paginated two-column list of all languages.
+func RenderAllLanguagesPage(languages []string, cursorIdx, pageIdx int) {
+	w, h := getTermSize()
+	if w > 120 {
+		w = 120
+	}
+	if w < 40 {
+		w = 40
+	}
+	inner := w - 4
+
+	itemsPerPage := allLangsPerPage(h)
+	pages := totalPages(len(languages), itemsPerPage)
+	if pageIdx >= pages {
+		pageIdx = pages - 1
+	}
+
+	start := pageIdx * itemsPerPage
+	end := start + itemsPerPage
+	if end > len(languages) {
+		end = len(languages)
+	}
+	pageLangs := languages[start:end]
+
+	var b strings.Builder
+	b.WriteString(clearSeq)
+	b.WriteString(hideCursor)
+
+	pageInfo := fmt.Sprintf("  %d/%d", pageIdx+1, pages)
+
+	lines := []string{
+		boxTop(w),
+		boxLine(bold+cyan+"  Lark"+reset+dim+"  ·  All Languages"+pageInfo+reset, w),
+		boxDiv(w),
+		boxEmpty(w),
+	}
+
+	colWidth := inner / 2
+	numRows := (len(pageLangs) + 1) / 2
+	for row := 0; row < numRows; row++ {
+		leftIdx := row * 2
+		rightIdx := row * 2 + 1
+		globalLeft := start + leftIdx
+		globalRight := start + rightIdx
+		left := formatLangItem(languages, globalLeft, cursorIdx, colWidth)
+		right := ""
+		if rightIdx < len(pageLangs) {
+			right = formatLangItem(languages, globalRight, cursorIdx, colWidth)
+		}
+		lines = append(lines, boxLine(left+right, w))
+	}
+
+	lines = append(lines,
+		boxEmpty(w),
+		boxDiv(w),
+		boxLine("  "+dim+bold+"↑↓←→"+reset+dim+" select  ·  "+bold+"PgUp/PgDn"+reset+dim+" page  ·  "+bold+"Enter"+reset+dim+" confirm  ·  "+bold+"Esc"+reset+dim+" back"+reset, w),
 		boxBottom(w),
 	)
 	writeLines(&b, lines)
@@ -701,6 +908,17 @@ func difficultyColor(d api.Difficulty) string {
 	default:
 		return dim
 	}
+}
+
+// allLangsPerPage calculates how many language items (two-column) fit on one page.
+func allLangsPerPage(termHeight int) int {
+	// Overhead: boxTop + header + boxDiv + boxEmpty(top) + boxEmpty(bot) + boxDiv + nav + boxBottom + 2 extra
+	const overhead = 10
+	avail := termHeight - overhead
+	if avail < 3 {
+		avail = 3
+	}
+	return avail * 2 // two columns per row
 }
 
 // scenariosPerPage calculates how many scenarios fit on one page given
@@ -958,9 +1176,37 @@ var settingsLabels = []string{
 	"Show dialog choices",
 	"Show vocabulary hints",
 	"Show grammar corrections",
+	"Explanation language",
+}
+
+// explanationLangs is the cycle list for the explanation language setting.
+var explanationLangs = []string{
+	"English", "Español", "Français", "Deutsch",
+	"日本語", "中文", "Português", "한국어",
+}
+
+// explanationLangDisplay returns the current explanation language display name.
+func explanationLangDisplay(s *Settings) string {
+	if s.ExplanationLang == "" {
+		return "English"
+	}
+	return s.ExplanationLang
+}
+
+// cycleExplanationLang advances to the next language in the cycle.
+func cycleExplanationLang(s *Settings) {
+	cur := explanationLangDisplay(s)
+	for i, l := range explanationLangs {
+		if l == cur {
+			s.ExplanationLang = explanationLangs[(i+1)%len(explanationLangs)]
+			return
+		}
+	}
+	s.ExplanationLang = explanationLangs[0]
 }
 
 // settingValue returns whether the i-th setting is enabled (shown).
+// For the explanation language row (index 4), this always returns true (not a toggle).
 func settingValue(s *Settings, i int) bool {
 	switch i {
 	case 0:
@@ -971,11 +1217,14 @@ func settingValue(s *Settings, i int) bool {
 		return !s.HideVocabulary
 	case 3:
 		return !s.HideGrammar
+	case 4:
+		return true // not a boolean toggle
 	}
 	return true
 }
 
-// toggleSetting flips the i-th setting.
+// toggleSetting flips the i-th setting. For index 4 (explanation language),
+// it cycles through the language list instead.
 func toggleSetting(s *Settings, i int) {
 	switch i {
 	case 0:
@@ -986,6 +1235,8 @@ func toggleSetting(s *Settings, i int) {
 		s.HideVocabulary = !s.HideVocabulary
 	case 3:
 		s.HideGrammar = !s.HideGrammar
+	case 4:
+		cycleExplanationLang(s)
 	}
 }
 
@@ -1010,6 +1261,21 @@ func RenderSettingsPage(settings *Settings, cursorIdx int) {
 		boxEmpty(w),
 	}
 	for i, label := range settingsLabels {
+		if i == 4 {
+			// Explanation language — cycle picker, not a toggle
+			langVal := explanationLangDisplay(settings)
+			tag := bold + cyan + "[" + langVal + "]" + reset
+			if i == cursorIdx {
+				lines = append(lines,
+					boxLine(fmt.Sprintf("  %s%s▸ %-28s %s%s", highlight+bold, white, label, reset+highlight+bold+cyan, "["+langVal+"]"+reset), w),
+				)
+			} else {
+				lines = append(lines,
+					boxLine(fmt.Sprintf("    %-28s %s", label, tag), w),
+				)
+			}
+			continue
+		}
 		on := settingValue(settings, i)
 		var tag string
 		if on {

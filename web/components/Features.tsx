@@ -7,9 +7,9 @@ const features = [
   },
   {
     flag: "--languages",
-    summary: "8 supported",
+    summary: "80+ supported",
     detail:
-      "Spanish, French, German, Japanese, Italian, Portuguese, Korean, and Chinese.",
+      "Spanish, French, German, Japanese, Arabic, Hindi, and 75 more — from Afrikaans to Zulu.",
   },
   {
     flag: "--stories",

@@ -8,6 +8,7 @@ import (
 
 	"github.com/joshburnsxyz/lark/api"
 	"github.com/joshburnsxyz/lark/server/ai"
+	"github.com/joshburnsxyz/lark/server/cost"
 	"github.com/joshburnsxyz/lark/server/session"
 )
 
@@ -15,6 +16,8 @@ import (
 type ScenarioHandler struct {
 	AI       ai.Client
 	Sessions session.Store
+	Cost     cost.Store
+	Events   *cost.EventRecorder
 }
 
 // List handles GET /scenarios.
@@ -54,24 +57,42 @@ func (h *ScenarioHandler) Start(w http.ResponseWriter, r *http.Request) {
 		playerID = "anonymous"
 	}
 
-	msg, history, err := h.AI.StartScenario(r.Context(), scenario, lang)
+	if h.Cost != nil && h.Cost.Get(playerID) >= 2.0 {
+		writeError(w, http.StatusPaymentRequired, "usage limit reached")
+		return
+	}
+
+	explanationLang := req.ExplanationLang
+	if explanationLang == "" {
+		explanationLang = "English"
+	}
+
+	msg, history, aiCost, err := h.AI.StartScenario(r.Context(), scenario, lang, explanationLang)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to start scenario: "+err.Error())
 		return
 	}
 
+	if h.Cost != nil && aiCost > 0 {
+		h.Cost.Add(playerID, aiCost)
+	}
+	if h.Events != nil && aiCost > 0 {
+		h.Events.Record(playerID, req.ScenarioID, req.Language, req.CustomPrompt != "", aiCost)
+	}
+
 	sess := &session.Session{
-		ID:           generateID(),
-		PlayerID:     playerID,
-		ScenarioID:   req.ScenarioID,
-		CustomPrompt: req.CustomPrompt,
-		Language:     req.Language,
-		TurnCount:    1,
-		History:      history,
-		VocabSeen:    msg.Vocabulary,
-		LastMessage:  msg,
-		CreatedAt:    time.Now(),
-		LastActive:   time.Now(),
+		ID:              generateID(),
+		PlayerID:        playerID,
+		ScenarioID:      req.ScenarioID,
+		CustomPrompt:    req.CustomPrompt,
+		Language:        req.Language,
+		ExplanationLang: explanationLang,
+		TurnCount:       1,
+		History:         history,
+		VocabSeen:       msg.Vocabulary,
+		LastMessage:     msg,
+		CreatedAt:       time.Now(),
+		LastActive:      time.Now(),
 	}
 
 	if err := h.Sessions.Save(sess); err != nil {
@@ -111,6 +132,16 @@ func (h *ScenarioHandler) StartStream(w http.ResponseWriter, r *http.Request) {
 		playerID = "anonymous"
 	}
 
+	if h.Cost != nil && h.Cost.Get(playerID) >= 2.0 {
+		writeError(w, http.StatusPaymentRequired, "usage limit reached")
+		return
+	}
+
+	explanationLang := req.ExplanationLang
+	if explanationLang == "" {
+		explanationLang = "English"
+	}
+
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		writeError(w, http.StatusInternalServerError, "streaming not supported")
@@ -127,7 +158,7 @@ func (h *ScenarioHandler) StartStream(w http.ResponseWriter, r *http.Request) {
 		flusher.Flush()
 	}
 
-	msg, history, err := h.AI.StartScenarioStream(r.Context(), scenario, lang, callback)
+	msg, history, aiCost, err := h.AI.StartScenarioStream(r.Context(), scenario, lang, explanationLang, callback)
 	if err != nil {
 		errData, _ := json.Marshal(map[string]string{"error": err.Error()})
 		fmt.Fprintf(w, "data: %s\n\n", errData)
@@ -135,18 +166,26 @@ func (h *ScenarioHandler) StartStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.Cost != nil && aiCost > 0 {
+		h.Cost.Add(playerID, aiCost)
+	}
+	if h.Events != nil && aiCost > 0 {
+		h.Events.Record(playerID, req.ScenarioID, req.Language, req.CustomPrompt != "", aiCost)
+	}
+
 	sess := &session.Session{
-		ID:           generateID(),
-		PlayerID:     playerID,
-		ScenarioID:   req.ScenarioID,
-		CustomPrompt: req.CustomPrompt,
-		Language:     req.Language,
-		TurnCount:    1,
-		History:      history,
-		VocabSeen:    msg.Vocabulary,
-		LastMessage:  msg,
-		CreatedAt:    time.Now(),
-		LastActive:   time.Now(),
+		ID:              generateID(),
+		PlayerID:        playerID,
+		ScenarioID:      req.ScenarioID,
+		CustomPrompt:    req.CustomPrompt,
+		Language:        req.Language,
+		ExplanationLang: explanationLang,
+		TurnCount:       1,
+		History:         history,
+		VocabSeen:       msg.Vocabulary,
+		LastMessage:     msg,
+		CreatedAt:       time.Now(),
+		LastActive:      time.Now(),
 	}
 
 	if err := h.Sessions.Save(sess); err != nil {

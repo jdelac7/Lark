@@ -36,10 +36,10 @@ func NewGoogleClient(ctx context.Context, apiKey, model string) (*GoogleClient, 
 	return &GoogleClient{client: c, model: model}, nil
 }
 
-func (c *GoogleClient) generateConfig(scenario *api.Scenario, lang *api.Language) *genai.GenerateContentConfig {
+func (c *GoogleClient) generateConfig(scenario *api.Scenario, lang *api.Language, explanationLang string) *genai.GenerateContentConfig {
 	return &genai.GenerateContentConfig{
 		SystemInstruction: &genai.Content{
-			Parts: []*genai.Part{{Text: SystemPrompt(scenario, lang)}},
+			Parts: []*genai.Part{{Text: SystemPrompt(scenario, lang, explanationLang)}},
 		},
 		ResponseMIMEType: "application/json",
 		ResponseSchema:   googleTurnSchema(),
@@ -57,21 +57,21 @@ func googleIsRetryable(err error, callCtx context.Context) bool {
 		strings.Contains(s, "429") || strings.Contains(s, "RESOURCE_EXHAUSTED")
 }
 
-func (c *GoogleClient) StartScenarioStream(ctx context.Context, scenario *api.Scenario, lang *api.Language, callback StreamCallback) (*api.GameMessage, any, error) {
+func (c *GoogleClient) StartScenarioStream(ctx context.Context, scenario *api.Scenario, lang *api.Language, explanationLang string, callback StreamCallback) (*api.GameMessage, any, float64, error) {
 	t0 := time.Now()
-	config := c.generateConfig(scenario, lang)
+	config := c.generateConfig(scenario, lang, explanationLang)
 	seed := ScenarioSeed(scenario, lang)
 	log.Printf("[google] StartScenarioStream model=%s scenario=%s lang=%s", c.model, scenario.ID, lang.Code)
 
 	chat, err := c.client.Chats.Create(ctx, c.model, config, nil)
 	if err != nil {
-		return nil, nil, fmt.Errorf("creating chat: %w", err)
+		return nil, nil, 0, fmt.Errorf("creating chat: %w", err)
 	}
 
 	var accumulated strings.Builder
 	for result, err := range chat.SendMessageStream(ctx, genai.Part{Text: seed}) {
 		if err != nil {
-			return nil, nil, fmt.Errorf("streaming seed message: %w", err)
+			return nil, nil, 0, fmt.Errorf("streaming seed message: %w", err)
 		}
 		token := result.Text()
 		if token != "" {
@@ -85,28 +85,28 @@ func (c *GoogleClient) StartScenarioStream(ctx context.Context, scenario *api.Sc
 	text := accumulated.String()
 	msg, _, err := ParseTurnJSON(text)
 	if err != nil {
-		return nil, nil, fmt.Errorf("parsing response: %w", err)
+		return nil, nil, 0, fmt.Errorf("parsing response: %w", err)
 	}
 
-	history := chat.History(true)
+	history := trimGoogleHistory(chat.History(true))
 	log.Printf("[google] StartScenarioStream total: %s", time.Since(t0))
-	return msg, history, nil
+	return msg, history, 0, nil
 }
 
-func (c *GoogleClient) SendInputStream(ctx context.Context, scenario *api.Scenario, lang *api.Language, historyAny any, input string, callback StreamCallback) (*api.GameMessage, *api.Correction, any, error) {
+func (c *GoogleClient) SendInputStream(ctx context.Context, scenario *api.Scenario, lang *api.Language, explanationLang string, historyAny any, input string, callback StreamCallback) (*api.GameMessage, *api.Correction, any, float64, error) {
 	history, _ := historyAny.([]*genai.Content)
 	t0 := time.Now()
-	config := c.generateConfig(scenario, lang)
+	config := c.generateConfig(scenario, lang, explanationLang)
 
 	chat, err := c.client.Chats.Create(ctx, c.model, config, history)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("creating chat: %w", err)
+		return nil, nil, nil, 0, fmt.Errorf("creating chat: %w", err)
 	}
 
 	var accumulated strings.Builder
 	for result, err := range chat.SendMessageStream(ctx, genai.Part{Text: input}) {
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("streaming message: %w", err)
+			return nil, nil, nil, 0, fmt.Errorf("streaming message: %w", err)
 		}
 		token := result.Text()
 		if token != "" {
@@ -120,17 +120,17 @@ func (c *GoogleClient) SendInputStream(ctx context.Context, scenario *api.Scenar
 	text := accumulated.String()
 	msg, correction, err := ParseTurnJSON(text)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("parsing response: %w", err)
+		return nil, nil, nil, 0, fmt.Errorf("parsing response: %w", err)
 	}
 
-	newHistory := chat.History(true)
+	newHistory := trimGoogleHistory(chat.History(true))
 	log.Printf("[google] SendInputStream total: %s", time.Since(t0))
-	return msg, correction, newHistory, nil
+	return msg, correction, newHistory, 0, nil
 }
 
-func (c *GoogleClient) StartScenario(ctx context.Context, scenario *api.Scenario, lang *api.Language) (*api.GameMessage, any, error) {
+func (c *GoogleClient) StartScenario(ctx context.Context, scenario *api.Scenario, lang *api.Language, explanationLang string) (*api.GameMessage, any, float64, error) {
 	t0 := time.Now()
-	config := c.generateConfig(scenario, lang)
+	config := c.generateConfig(scenario, lang, explanationLang)
 	seed := ScenarioSeed(scenario, lang)
 	log.Printf("[google] StartScenario model=%s scenario=%s lang=%s", c.model, scenario.ID, lang.Code)
 
@@ -145,14 +145,14 @@ func (c *GoogleClient) StartScenario(ctx context.Context, scenario *api.Scenario
 			select {
 			case <-time.After(delay):
 			case <-ctx.Done():
-				return nil, nil, ctx.Err()
+				return nil, nil, 0, ctx.Err()
 			}
 		}
 
 		var err error
 		chat, err = c.client.Chats.Create(ctx, c.model, config, nil)
 		if err != nil {
-			return nil, nil, fmt.Errorf("creating chat: %w", err)
+			return nil, nil, 0, fmt.Errorf("creating chat: %w", err)
 		}
 
 		callCtx, cancel := context.WithTimeout(ctx, googleCallTimeout)
@@ -170,28 +170,28 @@ func (c *GoogleClient) StartScenario(ctx context.Context, scenario *api.Scenario
 			result = nil
 			continue
 		}
-		return nil, nil, fmt.Errorf("sending seed message: %w", err)
+		return nil, nil, 0, fmt.Errorf("sending seed message: %w", err)
 	}
 
 	if result == nil {
-		return nil, nil, fmt.Errorf("sending seed message after retries: %w", lastErr)
+		return nil, nil, 0, fmt.Errorf("sending seed message after retries: %w", lastErr)
 	}
 
 	text := result.Text()
 	msg, _, err := ParseTurnJSON(text)
 	if err != nil {
-		return nil, nil, fmt.Errorf("parsing response: %w", err)
+		return nil, nil, 0, fmt.Errorf("parsing response: %w", err)
 	}
 
-	history := chat.History(true)
+	history := trimGoogleHistory(chat.History(true))
 	log.Printf("[google] StartScenario total: %s", time.Since(t0))
-	return msg, history, nil
+	return msg, history, 0, nil
 }
 
-func (c *GoogleClient) SendInput(ctx context.Context, scenario *api.Scenario, lang *api.Language, historyAny any, input string) (*api.GameMessage, *api.Correction, any, error) {
+func (c *GoogleClient) SendInput(ctx context.Context, scenario *api.Scenario, lang *api.Language, explanationLang string, historyAny any, input string) (*api.GameMessage, *api.Correction, any, float64, error) {
 	history, _ := historyAny.([]*genai.Content)
 	t0 := time.Now()
-	config := c.generateConfig(scenario, lang)
+	config := c.generateConfig(scenario, lang, explanationLang)
 
 	var result *genai.GenerateContentResponse
 	var chat *genai.Chat
@@ -204,14 +204,14 @@ func (c *GoogleClient) SendInput(ctx context.Context, scenario *api.Scenario, la
 			select {
 			case <-time.After(delay):
 			case <-ctx.Done():
-				return nil, nil, nil, ctx.Err()
+				return nil, nil, nil, 0, ctx.Err()
 			}
 		}
 
 		var err error
 		chat, err = c.client.Chats.Create(ctx, c.model, config, history)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("creating chat: %w", err)
+			return nil, nil, nil, 0, fmt.Errorf("creating chat: %w", err)
 		}
 
 		callCtx, cancel := context.WithTimeout(ctx, googleCallTimeout)
@@ -229,31 +229,46 @@ func (c *GoogleClient) SendInput(ctx context.Context, scenario *api.Scenario, la
 			result = nil
 			continue
 		}
-		return nil, nil, nil, fmt.Errorf("sending message: %w", err)
+		return nil, nil, nil, 0, fmt.Errorf("sending message: %w", err)
 	}
 
 	if result == nil {
-		return nil, nil, nil, fmt.Errorf("sending message after retries: %w", lastErr)
+		return nil, nil, nil, 0, fmt.Errorf("sending message after retries: %w", lastErr)
 	}
 
 	text := result.Text()
 	msg, correction, err := ParseTurnJSON(text)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("parsing response: %w", err)
+		return nil, nil, nil, 0, fmt.Errorf("parsing response: %w", err)
 	}
 
-	newHistory := chat.History(true)
+	newHistory := trimGoogleHistory(chat.History(true))
 	log.Printf("[google] SendInput total: %s", time.Since(t0))
-	return msg, correction, newHistory, nil
+	return msg, correction, newHistory, 0, nil
 }
 
 // BuildStartHistory reconstructs Google-format conversation history from a cached first-turn response.
-func (c *GoogleClient) BuildStartHistory(scenario *api.Scenario, lang *api.Language, responseText string) any {
+func (c *GoogleClient) BuildStartHistory(scenario *api.Scenario, lang *api.Language, explanationLang string, responseText string) any {
 	seed := ScenarioSeed(scenario, lang)
 	return []*genai.Content{
 		{Role: "user", Parts: []*genai.Part{{Text: seed}}},
-		{Role: "model", Parts: []*genai.Part{{Text: responseText}}},
+		{Role: "model", Parts: []*genai.Part{{Text: TrimHistoryJSON(responseText)}}},
 	}
+}
+
+// trimGoogleHistory strips translations/vocabulary from model responses in history.
+func trimGoogleHistory(history []*genai.Content) []*genai.Content {
+	for _, msg := range history {
+		if msg.Role != "model" {
+			continue
+		}
+		for _, part := range msg.Parts {
+			if part.Text != "" {
+				part.Text = TrimHistoryJSON(part.Text)
+			}
+		}
+	}
+	return history
 }
 
 func googleTurnSchema() *genai.Schema {

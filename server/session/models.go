@@ -8,15 +8,16 @@ import (
 
 // Session represents an active game session.
 type Session struct {
-	ID           string
-	PlayerID     string
-	ScenarioID   string
-	CustomPrompt string // non-empty for user-created scenarios
-	Language     string
-	TurnCount    int
-	History      any // opaque history managed by the AI backend
-	VocabSeen    []api.VocabItem
-	LastMessage  *api.GameMessage
-	CreatedAt    time.Time
-	LastActive   time.Time
+	ID              string
+	PlayerID        string
+	ScenarioID      string
+	CustomPrompt    string // non-empty for user-created scenarios
+	Language        string
+	ExplanationLang string // language for translations/explanations (default "English")
+	TurnCount       int
+	History         any // opaque history managed by the AI backend
+	VocabSeen       []api.VocabItem
+	LastMessage     *api.GameMessage
+	CreatedAt       time.Time
+	LastActive      time.Time
 }

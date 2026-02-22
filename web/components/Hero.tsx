@@ -1,6 +1,12 @@
+"use client";
+
+import { useSession } from "next-auth/react";
 import TerminalMockup from "./TerminalMockup";
 
 export default function Hero() {
+  const { data: session } = useSession();
+  const isSubscribed = session?.user?.subscribed;
+
   return (
     <section className="relative min-h-screen pb-16 pt-20">
       <div className="mx-auto max-w-4xl px-6">
@@ -33,7 +39,7 @@ export default function Hero() {
             You find yourself standing at the entrance of a language learning
             adventure. Before you lies a world of{" "}
             <span className="text-yellow">40 immersive scenarios</span> across{" "}
-            <span className="text-cyan">8 languages</span>. Practice ordering
+            <span className="text-cyan">80+ languages</span>. Practice ordering
             food in Madrid, navigating the streets of Tokyo, or checking into a
             hotel in Paris &mdash; all from your terminal.
           </p>
@@ -54,12 +60,21 @@ export default function Hero() {
 
         {/* CTAs as terminal commands */}
         <div className="flex flex-col gap-3 text-sm sm:flex-row">
-          <a
-            href="#shop"
-            className="inline-flex items-center gap-2 border border-accent px-5 py-2.5 text-accent transition-colors hover:bg-accent/10"
-          >
-            <span className="text-text-dim">&gt;</span> subscribe
-          </a>
+          {isSubscribed ? (
+            <a
+              href="/play"
+              className="inline-flex items-center gap-2 border border-accent px-5 py-2.5 text-accent transition-colors hover:bg-accent/10"
+            >
+              <span className="text-text-dim">&gt;</span> play
+            </a>
+          ) : (
+            <a
+              href="#shop"
+              className="inline-flex items-center gap-2 border border-accent px-5 py-2.5 text-accent transition-colors hover:bg-accent/10"
+            >
+              <span className="text-text-dim">&gt;</span> subscribe
+            </a>
+          )}
           <a
             href="#features"
             className="inline-flex items-center gap-2 border border-border px-5 py-2.5 text-text-dim transition-colors hover:border-text-dim hover:text-text"

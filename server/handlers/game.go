@@ -7,6 +7,7 @@ import (
 
 	"github.com/joshburnsxyz/lark/api"
 	"github.com/joshburnsxyz/lark/server/ai"
+	"github.com/joshburnsxyz/lark/server/cost"
 	"github.com/joshburnsxyz/lark/server/progress"
 	"github.com/joshburnsxyz/lark/server/session"
 )
@@ -16,6 +17,8 @@ type GameHandler struct {
 	AI       ai.Client
 	Sessions session.Store
 	Progress progress.Store
+	Cost     cost.Store
+	Events   *cost.EventRecorder
 }
 
 // Input handles POST /game/input.
@@ -36,6 +39,16 @@ func (h *GameHandler) Input(w http.ResponseWriter, r *http.Request) {
 	lang := api.LanguageByCode(sess.Language)
 	if scenario == nil || lang == nil {
 		writeError(w, http.StatusInternalServerError, "invalid session state")
+		return
+	}
+
+	playerID := r.Header.Get("X-Player-ID")
+	if playerID == "" {
+		playerID = sess.PlayerID
+	}
+
+	if h.Cost != nil && h.Cost.Get(playerID) >= 2.0 {
+		writeError(w, http.StatusPaymentRequired, "usage limit reached")
 		return
 	}
 
@@ -60,10 +73,17 @@ func (h *GameHandler) Input(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msg, correction, newHistory, err := h.AI.SendInput(r.Context(), scenario, lang, sess.History, inputText)
+	msg, correction, newHistory, aiCost, err := h.AI.SendInput(r.Context(), scenario, lang, sess.ExplanationLang, sess.History, inputText)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to process input: "+err.Error())
 		return
+	}
+
+	if h.Cost != nil && aiCost > 0 {
+		h.Cost.Add(playerID, aiCost)
+	}
+	if h.Events != nil && aiCost > 0 {
+		h.Events.Record(playerID, sess.ScenarioID, sess.Language, sess.CustomPrompt != "", aiCost)
 	}
 
 	// Update session
@@ -79,10 +99,6 @@ func (h *GameHandler) Input(w http.ResponseWriter, r *http.Request) {
 
 	// If scenario finished, record progress
 	if msg.Finished {
-		playerID := r.Header.Get("X-Player-ID")
-		if playerID == "" {
-			playerID = sess.PlayerID
-		}
 		h.Progress.AddCompleted(playerID, api.CompletedScenario{
 			ScenarioID: sess.ScenarioID,
 			Language:   sess.Language,
@@ -116,6 +132,16 @@ func (h *GameHandler) InputStream(w http.ResponseWriter, r *http.Request) {
 	lang := api.LanguageByCode(sess.Language)
 	if scenario == nil || lang == nil {
 		writeError(w, http.StatusInternalServerError, "invalid session state")
+		return
+	}
+
+	playerID := r.Header.Get("X-Player-ID")
+	if playerID == "" {
+		playerID = sess.PlayerID
+	}
+
+	if h.Cost != nil && h.Cost.Get(playerID) >= 2.0 {
+		writeError(w, http.StatusPaymentRequired, "usage limit reached")
 		return
 	}
 
@@ -155,12 +181,19 @@ func (h *GameHandler) InputStream(w http.ResponseWriter, r *http.Request) {
 		flusher.Flush()
 	}
 
-	msg, correction, newHistory, err := h.AI.SendInputStream(r.Context(), scenario, lang, sess.History, inputText, callback)
+	msg, correction, newHistory, aiCost, err := h.AI.SendInputStream(r.Context(), scenario, lang, sess.ExplanationLang, sess.History, inputText, callback)
 	if err != nil {
 		errData, _ := json.Marshal(map[string]string{"error": err.Error()})
 		fmt.Fprintf(w, "data: %s\n\n", errData)
 		flusher.Flush()
 		return
+	}
+
+	if h.Cost != nil && aiCost > 0 {
+		h.Cost.Add(playerID, aiCost)
+	}
+	if h.Events != nil && aiCost > 0 {
+		h.Events.Record(playerID, sess.ScenarioID, sess.Language, sess.CustomPrompt != "", aiCost)
 	}
 
 	sess.TurnCount++
@@ -176,10 +209,6 @@ func (h *GameHandler) InputStream(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if msg.Finished {
-		playerID := r.Header.Get("X-Player-ID")
-		if playerID == "" {
-			playerID = sess.PlayerID
-		}
 		h.Progress.AddCompleted(playerID, api.CompletedScenario{
 			ScenarioID: sess.ScenarioID,
 			Language:   sess.Language,

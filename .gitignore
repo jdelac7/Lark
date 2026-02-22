@@ -17,6 +17,18 @@
 # Environment
 .env
 
+# Prompt logs (testing)
+server/prompt_logs/
+prompt_logs/
+
+# Cost database
+cost.db
+cost.db-shm
+cost.db-wal
+server/cost.db
+server/cost.db-shm
+server/cost.db-wal
+
 # IDE
 .idea/
 .vscode/
@@ -33,6 +45,7 @@ web/node_modules/
 web/.next/
 web/out/
 web/.env.local
+web/data/
 
 # Android
 android/.gradle/

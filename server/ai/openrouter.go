@@ -65,13 +65,18 @@ type orResponse struct {
 			Content string `json:"content"`
 		} `json:"message"`
 	} `json:"choices"`
+	Usage *struct {
+		PromptTokens     int     `json:"prompt_tokens"`
+		CompletionTokens int     `json:"completion_tokens"`
+		Cost             float64 `json:"cost"`
+	} `json:"usage,omitempty"`
 	Error *struct {
 		Message string `json:"message"`
 		Code    any    `json:"code"`
 	} `json:"error,omitempty"`
 }
 
-func (c *OpenRouterClient) send(ctx context.Context, messages []orMessage) (string, error) {
+func (c *OpenRouterClient) send(ctx context.Context, messages []orMessage) (string, float64, error) {
 	reqBody := orRequest{
 		Model:    c.model,
 		Messages: messages,
@@ -84,7 +89,7 @@ func (c *OpenRouterClient) send(ctx context.Context, messages []orMessage) (stri
 
 	body, err := json.Marshal(reqBody)
 	if err != nil {
-		return "", fmt.Errorf("marshaling request: %w", err)
+		return "", 0, fmt.Errorf("marshaling request: %w", err)
 	}
 
 	var lastErr error
@@ -95,7 +100,7 @@ func (c *OpenRouterClient) send(ctx context.Context, messages []orMessage) (stri
 			select {
 			case <-time.After(delay):
 			case <-ctx.Done():
-				return "", ctx.Err()
+				return "", 0, ctx.Err()
 			}
 		}
 
@@ -105,7 +110,7 @@ func (c *OpenRouterClient) send(ctx context.Context, messages []orMessage) (stri
 		req, err := http.NewRequestWithContext(callCtx, "POST", openRouterBaseURL, bytes.NewReader(body))
 		if err != nil {
 			cancel()
-			return "", fmt.Errorf("creating request: %w", err)
+			return "", 0, fmt.Errorf("creating request: %w", err)
 		}
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+c.apiKey)
@@ -118,7 +123,7 @@ func (c *OpenRouterClient) send(ctx context.Context, messages []orMessage) (stri
 			if callCtx.Err() == context.DeadlineExceeded || strings.Contains(err.Error(), "timeout") {
 				continue
 			}
-			return "", fmt.Errorf("sending request: %w", err)
+			return "", 0, fmt.Errorf("sending request: %w", err)
 		}
 
 		respBody, _ := io.ReadAll(resp.Body)
@@ -132,12 +137,12 @@ func (c *OpenRouterClient) send(ctx context.Context, messages []orMessage) (stri
 		}
 
 		if resp.StatusCode >= 400 {
-			return "", fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(respBody))
+			return "", 0, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(respBody))
 		}
 
 		var orResp orResponse
 		if err := json.Unmarshal(respBody, &orResp); err != nil {
-			return "", fmt.Errorf("decoding response: %w", err)
+			return "", 0, fmt.Errorf("decoding response: %w", err)
 		}
 
 		if orResp.Error != nil {
@@ -146,17 +151,22 @@ func (c *OpenRouterClient) send(ctx context.Context, messages []orMessage) (stri
 				lastErr = fmt.Errorf("API error: %s", errMsg)
 				continue
 			}
-			return "", fmt.Errorf("API error: %s", errMsg)
+			return "", 0, fmt.Errorf("API error: %s", errMsg)
 		}
 
 		if len(orResp.Choices) == 0 {
-			return "", fmt.Errorf("no choices in response")
+			return "", 0, fmt.Errorf("no choices in response")
 		}
 
-		return orResp.Choices[0].Message.Content, nil
+		var cost float64
+		if orResp.Usage != nil {
+			cost = orResp.Usage.Cost
+		}
+
+		return orResp.Choices[0].Message.Content, cost, nil
 	}
 
-	return "", fmt.Errorf("failed after retries: %w", lastErr)
+	return "", 0, fmt.Errorf("failed after retries: %w", lastErr)
 }
 
 // orStreamDelta represents a single SSE chunk from OpenRouter's streaming response.
@@ -167,11 +177,16 @@ type orStreamChunk struct {
 		} `json:"delta"`
 		FinishReason *string `json:"finish_reason"`
 	} `json:"choices"`
+	Usage *struct {
+		PromptTokens     int     `json:"prompt_tokens"`
+		CompletionTokens int     `json:"completion_tokens"`
+		Cost             float64 `json:"cost"`
+	} `json:"usage,omitempty"`
 }
 
 const openRouterStreamTimeout = 120 * time.Second
 
-func (c *OpenRouterClient) sendStream(ctx context.Context, messages []orMessage, callback StreamCallback) (string, error) {
+func (c *OpenRouterClient) sendStream(ctx context.Context, messages []orMessage, callback StreamCallback) (string, float64, error) {
 	reqBody := orRequest{
 		Model:    c.model,
 		Messages: messages,
@@ -185,7 +200,7 @@ func (c *OpenRouterClient) sendStream(ctx context.Context, messages []orMessage,
 
 	body, err := json.Marshal(reqBody)
 	if err != nil {
-		return "", fmt.Errorf("marshaling request: %w", err)
+		return "", 0, fmt.Errorf("marshaling request: %w", err)
 	}
 
 	callCtx, cancel := context.WithTimeout(ctx, openRouterStreamTimeout)
@@ -193,23 +208,24 @@ func (c *OpenRouterClient) sendStream(ctx context.Context, messages []orMessage,
 
 	req, err := http.NewRequestWithContext(callCtx, "POST", openRouterBaseURL, bytes.NewReader(body))
 	if err != nil {
-		return "", fmt.Errorf("creating request: %w", err)
+		return "", 0, fmt.Errorf("creating request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+c.apiKey)
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("sending request: %w", err)
+		return "", 0, fmt.Errorf("sending request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
 		respBody, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(respBody))
+		return "", 0, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	var accumulated strings.Builder
+	var cost float64
 	scanner := bufio.NewScanner(resp.Body)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -234,110 +250,113 @@ func (c *OpenRouterClient) sendStream(ctx context.Context, messages []orMessage,
 				}
 			}
 		}
+		if chunk.Usage != nil {
+			cost = chunk.Usage.Cost
+		}
 	}
 	if err := scanner.Err(); err != nil {
-		return "", fmt.Errorf("reading stream: %w", err)
+		return "", 0, fmt.Errorf("reading stream: %w", err)
 	}
 
-	return accumulated.String(), nil
+	return accumulated.String(), cost, nil
 }
 
 // BuildStartHistory reconstructs OpenRouter-format conversation history from a cached first-turn response.
-func (c *OpenRouterClient) BuildStartHistory(scenario *api.Scenario, lang *api.Language, responseText string) any {
+func (c *OpenRouterClient) BuildStartHistory(scenario *api.Scenario, lang *api.Language, explanationLang string, responseText string) any {
 	return []orMessage{
-		{Role: "system", Content: SystemPrompt(scenario, lang)},
+		{Role: "system", Content: SystemPrompt(scenario, lang, explanationLang)},
 		{Role: "user", Content: ScenarioSeed(scenario, lang)},
-		{Role: "assistant", Content: responseText},
+		{Role: "assistant", Content: TrimHistoryJSON(responseText)},
 	}
 }
 
-func (c *OpenRouterClient) StartScenarioStream(ctx context.Context, scenario *api.Scenario, lang *api.Language, callback StreamCallback) (*api.GameMessage, any, error) {
+func (c *OpenRouterClient) StartScenarioStream(ctx context.Context, scenario *api.Scenario, lang *api.Language, explanationLang string, callback StreamCallback) (*api.GameMessage, any, float64, error) {
 	t0 := time.Now()
 	log.Printf("[openrouter] StartScenarioStream model=%s scenario=%s lang=%s", c.model, scenario.ID, lang.Code)
 
 	messages := []orMessage{
-		{Role: "system", Content: SystemPrompt(scenario, lang)},
+		{Role: "system", Content: SystemPrompt(scenario, lang, explanationLang)},
 		{Role: "user", Content: ScenarioSeed(scenario, lang)},
 	}
 
-	text, err := c.sendStream(ctx, messages, callback)
+	text, cost, err := c.sendStream(ctx, messages, callback)
 	if err != nil {
-		return nil, nil, fmt.Errorf("streaming seed message: %w", err)
+		return nil, nil, 0, fmt.Errorf("streaming seed message: %w", err)
 	}
 
 	msg, _, err := ParseTurnJSON(text)
 	if err != nil {
-		return nil, nil, fmt.Errorf("parsing response: %w", err)
+		return nil, nil, 0, fmt.Errorf("parsing response: %w", err)
 	}
 
-	history := append(messages, orMessage{Role: "assistant", Content: text})
+	history := append(messages, orMessage{Role: "assistant", Content: TrimHistoryJSON(text)})
 	log.Printf("[openrouter] StartScenarioStream total: %s", time.Since(t0))
-	return msg, history, nil
+	return msg, history, cost, nil
 }
 
-func (c *OpenRouterClient) SendInputStream(ctx context.Context, scenario *api.Scenario, lang *api.Language, historyAny any, input string, callback StreamCallback) (*api.GameMessage, *api.Correction, any, error) {
+func (c *OpenRouterClient) SendInputStream(ctx context.Context, scenario *api.Scenario, lang *api.Language, explanationLang string, historyAny any, input string, callback StreamCallback) (*api.GameMessage, *api.Correction, any, float64, error) {
 	history, _ := historyAny.([]orMessage)
 	t0 := time.Now()
 
 	messages := append(history, orMessage{Role: "user", Content: input})
 
-	text, err := c.sendStream(ctx, messages, callback)
+	text, cost, err := c.sendStream(ctx, messages, callback)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("streaming message: %w", err)
+		return nil, nil, nil, 0, fmt.Errorf("streaming message: %w", err)
 	}
 
 	msg, correction, err := ParseTurnJSON(text)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("parsing response: %w", err)
+		return nil, nil, nil, 0, fmt.Errorf("parsing response: %w", err)
 	}
 
-	newHistory := append(messages, orMessage{Role: "assistant", Content: text})
+	newHistory := append(messages, orMessage{Role: "assistant", Content: TrimHistoryJSON(text)})
 	log.Printf("[openrouter] SendInputStream total: %s", time.Since(t0))
-	return msg, correction, newHistory, nil
+	return msg, correction, newHistory, cost, nil
 }
 
-func (c *OpenRouterClient) StartScenario(ctx context.Context, scenario *api.Scenario, lang *api.Language) (*api.GameMessage, any, error) {
+func (c *OpenRouterClient) StartScenario(ctx context.Context, scenario *api.Scenario, lang *api.Language, explanationLang string) (*api.GameMessage, any, float64, error) {
 	t0 := time.Now()
 	log.Printf("[openrouter] StartScenario model=%s scenario=%s lang=%s", c.model, scenario.ID, lang.Code)
 
 	messages := []orMessage{
-		{Role: "system", Content: SystemPrompt(scenario, lang)},
+		{Role: "system", Content: SystemPrompt(scenario, lang, explanationLang)},
 		{Role: "user", Content: ScenarioSeed(scenario, lang)},
 	}
 
-	text, err := c.send(ctx, messages)
+	text, cost, err := c.send(ctx, messages)
 	if err != nil {
-		return nil, nil, fmt.Errorf("sending seed message: %w", err)
+		return nil, nil, 0, fmt.Errorf("sending seed message: %w", err)
 	}
 
 	msg, _, err := ParseTurnJSON(text)
 	if err != nil {
-		return nil, nil, fmt.Errorf("parsing response: %w", err)
+		return nil, nil, 0, fmt.Errorf("parsing response: %w", err)
 	}
 
-	// Store full message history for subsequent turns
-	history := append(messages, orMessage{Role: "assistant", Content: text})
+	// Store trimmed history for subsequent turns (saves tokens)
+	history := append(messages, orMessage{Role: "assistant", Content: TrimHistoryJSON(text)})
 	log.Printf("[openrouter] StartScenario total: %s", time.Since(t0))
-	return msg, history, nil
+	return msg, history, cost, nil
 }
 
-func (c *OpenRouterClient) SendInput(ctx context.Context, scenario *api.Scenario, lang *api.Language, historyAny any, input string) (*api.GameMessage, *api.Correction, any, error) {
+func (c *OpenRouterClient) SendInput(ctx context.Context, scenario *api.Scenario, lang *api.Language, explanationLang string, historyAny any, input string) (*api.GameMessage, *api.Correction, any, float64, error) {
 	history, _ := historyAny.([]orMessage)
 	t0 := time.Now()
 
 	messages := append(history, orMessage{Role: "user", Content: input})
 
-	text, err := c.send(ctx, messages)
+	text, cost, err := c.send(ctx, messages)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("sending message: %w", err)
+		return nil, nil, nil, 0, fmt.Errorf("sending message: %w", err)
 	}
 
 	msg, correction, err := ParseTurnJSON(text)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("parsing response: %w", err)
+		return nil, nil, nil, 0, fmt.Errorf("parsing response: %w", err)
 	}
 
-	newHistory := append(messages, orMessage{Role: "assistant", Content: text})
+	newHistory := append(messages, orMessage{Role: "assistant", Content: TrimHistoryJSON(text)})
 	log.Printf("[openrouter] SendInput total: %s", time.Since(t0))
-	return msg, correction, newHistory, nil
+	return msg, correction, newHistory, cost, nil
 }

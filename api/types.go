@@ -42,9 +42,10 @@ type Language struct {
 
 // StartRequest is sent to POST /scenarios/start.
 type StartRequest struct {
-	ScenarioID   string `json:"scenarioId"`
-	Language     string `json:"language"`
-	CustomPrompt string `json:"customPrompt,omitempty"`
+	ScenarioID      string `json:"scenarioId"`
+	Language        string `json:"language"`
+	CustomPrompt    string `json:"customPrompt,omitempty"`
+	ExplanationLang string `json:"explanationLang,omitempty"`
 }
 
 // StartResponse is returned from POST /scenarios/start.

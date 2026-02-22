@@ -19,6 +19,23 @@ type TurnResponse struct {
 	Finished             bool            `json:"finished"`
 }
 
+// TrimHistoryJSON strips translations, vocabulary, and corrections from an
+// assistant response JSON so that subsequent turns send fewer tokens.
+// Keeps the same JSON structure so the LLM stays oriented.
+func TrimHistoryJSON(text string) string {
+	var tr TurnResponse
+	if err := json.Unmarshal([]byte(text), &tr); err != nil {
+		return text // can't parse — send as-is
+	}
+	tr.Vocabulary = nil
+	tr.Correction = nil
+	out, err := json.Marshal(tr)
+	if err != nil {
+		return text
+	}
+	return string(out)
+}
+
 // ParseTurnJSON parses raw JSON text into a GameMessage and optional Correction.
 func ParseTurnJSON(text string) (*api.GameMessage, *api.Correction, error) {
 	if text == "" {

@@ -3,6 +3,7 @@ import {
   WebhookVerificationError,
 } from "@polar-sh/sdk/webhooks";
 import { NextRequest, NextResponse } from "next/server";
+import { linkPolarCustomer, setSubscriptionStatus } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
   const body = await request.text();
@@ -32,17 +33,40 @@ export async function POST(request: NextRequest) {
   }
 
   switch (event.type) {
-    case "order.created":
+    case "order.created": {
+      const customerId = event.data.customerId;
+      const customerEmail = event.data.customer?.email;
       console.log(
-        `[Polar] Order created: ${event.data.id}, customer: ${event.data.customerId}`
+        `[Polar] Order created: ${event.data.id}, customer: ${customerId}`
       );
+      if (customerEmail && customerId) {
+        linkPolarCustomer(customerEmail, customerId);
+        setSubscriptionStatus(customerId, true);
+      }
       break;
+    }
 
-    case "subscription.revoked":
+    case "subscription.active": {
+      const customerId = event.data.customerId;
       console.log(
-        `[Polar] Subscription revoked: ${event.data.id}, customer: ${event.data.customerId}`
+        `[Polar] Subscription active: ${event.data.id}, customer: ${customerId}`
       );
+      if (customerId) {
+        setSubscriptionStatus(customerId, true);
+      }
       break;
+    }
+
+    case "subscription.revoked": {
+      const customerId = event.data.customerId;
+      console.log(
+        `[Polar] Subscription revoked: ${event.data.id}, customer: ${customerId}`
+      );
+      if (customerId) {
+        setSubscriptionStatus(customerId, false);
+      }
+      break;
+    }
 
     default:
       console.log(`[Polar] Unhandled event type: ${event.type}`);

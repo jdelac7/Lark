@@ -21,6 +21,7 @@ const (
 	configDirName   = "lark"
 	licenseFileName = "license"
 	cacheFileName   = "license_cache.json"
+	apikeyFileName  = "apikey"
 )
 
 // licenseCache represents the cached license validation result.
@@ -276,6 +277,76 @@ func handleActivateCommand(args []string) {
 
 	fmt.Println("done")
 	fmt.Println("\n  License activated successfully! Run 'lark' to start playing.\n")
+}
+
+// getAPIKey reads the OpenRouter API key from LARK_API_KEY env var,
+// falling back to ~/.config/lark/apikey file.
+func getAPIKey() string {
+	if key := os.Getenv("LARK_API_KEY"); key != "" {
+		return strings.TrimSpace(key)
+	}
+	dir, err := configDir()
+	if err != nil {
+		return ""
+	}
+	data, err := os.ReadFile(filepath.Join(dir, apikeyFileName))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
+}
+
+// saveAPIKey writes the OpenRouter API key to ~/.config/lark/apikey.
+func saveAPIKey(key string) error {
+	dir, err := configDir()
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(dir, apikeyFileName), []byte(key+"\n"), 0600)
+}
+
+// removeAPIKey removes the stored API key file.
+func removeAPIKey() {
+	dir, err := configDir()
+	if err != nil {
+		return
+	}
+	os.Remove(filepath.Join(dir, apikeyFileName))
+}
+
+// handleAPIKeyCommand handles the `lark apikey <key>` subcommand.
+func handleAPIKeyCommand(args []string) {
+	if len(args) < 2 {
+		fmt.Fprintf(os.Stderr, "\nUsage: lark apikey <openrouter-api-key>\n")
+		fmt.Fprintf(os.Stderr, "       lark apikey --remove\n\n")
+		fmt.Fprintf(os.Stderr, "  Get your API key at: https://openrouter.ai/keys\n\n")
+		os.Exit(1)
+	}
+
+	if args[1] == "--remove" {
+		removeAPIKey()
+		fmt.Println("\n  API key removed.")
+		if os.Getenv("LARK_API_KEY") != "" {
+			fmt.Println("  Note: LARK_API_KEY environment variable is still set. Unset it with:")
+			fmt.Println("    unset LARK_API_KEY")
+		}
+		fmt.Println()
+		return
+	}
+
+	key := strings.TrimSpace(args[1])
+	if key == "" {
+		fmt.Fprintf(os.Stderr, "Error: API key cannot be empty\n")
+		os.Exit(1)
+	}
+
+	fmt.Print("\n  Saving API key... ")
+	if err := saveAPIKey(key); err != nil {
+		fmt.Fprintf(os.Stderr, "\n  Error saving API key: %s\n", err)
+		os.Exit(1)
+	}
+	fmt.Println("done")
+	fmt.Println("\n  API key saved! Run 'lark' to start playing.\n")
 }
 
 // handleDeactivateCommand handles the `lark deactivate` subcommand.

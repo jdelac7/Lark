@@ -11,10 +11,11 @@ import (
 // Settings holds user preferences. Fields use "Hide" so that the zero value
 // (false) means everything is shown by default.
 type Settings struct {
-	HideTranslations bool `json:"hideTranslations"`
-	HideChoices      bool `json:"hideChoices"`
-	HideVocabulary   bool `json:"hideVocabulary"`
-	HideGrammar      bool `json:"hideGrammar"`
+	HideTranslations bool   `json:"hideTranslations"`
+	HideChoices      bool   `json:"hideChoices"`
+	HideVocabulary   bool   `json:"hideVocabulary"`
+	HideGrammar      bool   `json:"hideGrammar"`
+	ExplanationLang  string `json:"explanationLang,omitempty"` // empty = English
 }
 
 // SaveData holds all locally persisted state.

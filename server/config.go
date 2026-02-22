@@ -44,7 +44,7 @@ func LoadConfig() Config {
 		c.GeminiModel = "gemini-3-flash-preview"
 	}
 	if c.OpenRouterModel == "" {
-		c.OpenRouterModel = "google/gemini-3-flash-preview"
+		c.OpenRouterModel = "openai/gpt-4o-mini"
 	}
 	return c
 }
