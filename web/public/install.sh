@@ -4,7 +4,7 @@ set -e
 # Lark CLI installer
 # Usage: curl -fsSL https://lark.black/install.sh | sh
 
-GITHUB_REPO="jdelac7/Lark"
+BASE_URL="https://lark.black/releases"
 INSTALL_DIR="${LARK_INSTALL_DIR:-$HOME/.local/bin}"
 
 # Colors (disabled if not a terminal)
@@ -72,25 +72,6 @@ download() {
     fi
 }
 
-# Download URL contents to stdout
-download_stdout() {
-    url="$1"
-    if command -v curl >/dev/null 2>&1; then
-        curl -fsSL "$url"
-    elif command -v wget >/dev/null 2>&1; then
-        wget -qO- "$url"
-    else
-        error "Neither curl nor wget found. Please install one and try again."
-    fi
-}
-
-# Fetch the latest release tag from GitHub
-get_latest_version() {
-    download_stdout "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" \
-        | grep '"tag_name"' \
-        | sed -E 's/.*"tag_name":\s*"([^"]+)".*/\1/'
-}
-
 main() {
     printf "\n${BOLD}Lark CLI Installer${RESET}\n\n"
 
@@ -98,16 +79,9 @@ main() {
     ARCH=$(detect_arch)
     info "Detected platform: ${OS}/${ARCH}"
 
-    info "Fetching latest release..."
-    VERSION=$(get_latest_version)
-    if [ -z "$VERSION" ]; then
-        error "Could not determine latest version. Check https://github.com/${GITHUB_REPO}/releases"
-    fi
-    info "Latest version: ${VERSION}"
-
     ARCHIVE="lark_${OS}_${ARCH}.tar.gz"
-    DOWNLOAD_URL="https://github.com/${GITHUB_REPO}/releases/download/${VERSION}/${ARCHIVE}"
-    CHECKSUMS_URL="https://github.com/${GITHUB_REPO}/releases/download/${VERSION}/checksums.txt"
+    DOWNLOAD_URL="${BASE_URL}/${ARCHIVE}"
+    CHECKSUMS_URL="${BASE_URL}/checksums.txt"
 
     # Create temp directory with cleanup trap
     TMPDIR=$(mktemp -d)
@@ -143,7 +117,7 @@ main() {
     tar -xzf "$TMPDIR/$ARCHIVE" -C "$TMPDIR"
     install -m 755 "$TMPDIR/lark" "$INSTALL_DIR/lark"
 
-    success "Lark ${VERSION} installed to ${INSTALL_DIR}/lark"
+    success "Lark installed to ${INSTALL_DIR}/lark"
 
     # Check if install dir is in PATH
     case ":$PATH:" in
