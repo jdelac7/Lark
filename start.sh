@@ -18,10 +18,12 @@ GO_PID=$!
 
 # Start Next.js
 cd /app/web
-HOSTNAME=0.0.0.0 \
-PORT=${WEB_PORT} \
-COST_DB_PATH=/app/cost.db \
-GAME_SERVER_INTERNAL_URL=http://localhost:${GO_PORT} \
+export COST_DB_PATH=/app/cost.db
+export GAME_SERVER_INTERNAL_URL=http://localhost:${GO_PORT}
+export HOSTNAME=0.0.0.0
+export PORT=${WEB_PORT}
+# Ensure NextAuth uses the public URL, not the internal HOSTNAME
+export AUTH_URL="${AUTH_URL:-${NEXTAUTH_URL:-https://lark.black}}"
 node server.js &
 WEB_PID=$!
 
