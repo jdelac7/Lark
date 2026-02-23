@@ -84,8 +84,8 @@ func messageToJSON(msg *api.GameMessage) string {
 		Translation:          msg.Translation,
 		NPCDialog:            msg.NPCDialog,
 		NPCDialogTranslation: msg.NPCDialogTranslation,
-		Choices:              msg.Choices,
 		Vocabulary:           msg.Vocabulary,
+		Choices:              msg.Choices,
 		Finished:             msg.Finished,
 	}
 	data, _ := json.Marshal(tr)

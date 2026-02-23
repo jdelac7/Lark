@@ -74,8 +74,8 @@ type GameMessage struct {
 	Translation string       `json:"translation"`
 	NPCDialog   string       `json:"npcDialog,omitempty"`
 	NPCDialogTranslation string `json:"npcDialogTranslation,omitempty"`
-	Choices     []Choice     `json:"choices,omitempty"`
 	Vocabulary  []VocabItem  `json:"vocabulary,omitempty"`
+	Choices     []Choice     `json:"choices,omitempty"`
 	Finished    bool         `json:"finished"`
 }
 
