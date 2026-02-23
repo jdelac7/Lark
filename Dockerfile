@@ -18,8 +18,14 @@ RUN npm ci
 
 COPY web/ ./
 
-# Provide build-time defaults so next build succeeds
-ENV AUTH_SECRET=build-placeholder
+# Accept build-time args from Dokploy and expose to next build
+ARG AUTH_SECRET=build-placeholder
+ARG NEXT_PUBLIC_POLAR_PRODUCT_ID
+ARG NEXT_PUBLIC_SITE_URL=https://lark.black
+
+ENV AUTH_SECRET=${AUTH_SECRET}
+ENV NEXT_PUBLIC_POLAR_PRODUCT_ID=${NEXT_PUBLIC_POLAR_PRODUCT_ID}
+ENV NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
 
 RUN npm run build
 
