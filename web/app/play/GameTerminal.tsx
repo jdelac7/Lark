@@ -990,23 +990,6 @@ export default function GameTerminal() {
                       )}
                     </div>
                   )}
-                  {settings.showChoices && streamParsed.choices.length > 0 && (
-                    <div className="border-t border-border pt-3">
-                      <div className="space-y-1">
-                        {streamParsed.choices.map((c, i) => (
-                          <div key={i} className="text-left">
-                            <span className="text-text-dim">{i + 1}.</span>{" "}
-                            <span className="text-cyan">{c.text}</span>
-                            {settings.showTranslations && c.translation && (
-                              <span className="ml-2 text-text-dim italic">
-                                ({c.translation})
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                   {settings.showVocabulary && streamParsed.vocabulary.length > 0 && (
                     <div className="border-t border-border pt-3">
                       <div className="mb-2 text-xs font-bold text-purple">
@@ -1021,6 +1004,23 @@ export default function GameTerminal() {
                             {v.usage && (
                               <span className="ml-2 text-text-dim italic">
                                 ({v.usage})
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {settings.showChoices && streamParsed.choices.length > 0 && (
+                    <div className="border-t border-border pt-3">
+                      <div className="space-y-1">
+                        {streamParsed.choices.map((c, i) => (
+                          <div key={i} className="text-left">
+                            <span className="text-text-dim">{i + 1}.</span>{" "}
+                            <span className="text-cyan">{c.text}</span>
+                            {settings.showTranslations && c.translation && (
+                              <span className="ml-2 text-text-dim italic">
+                                ({c.translation})
                               </span>
                             )}
                           </div>
@@ -1082,33 +1082,6 @@ export default function GameTerminal() {
                 </div>
               )}
 
-              {/* Choices */}
-              {state === "playing" &&
-                settings.showChoices &&
-                message.choices &&
-                message.choices.length > 0 && (
-                  <div className="border-t border-border pt-3">
-                    <div className="space-y-1">
-                      {message.choices.map((c, i) => (
-                        <button
-                          key={i}
-                          tabIndex={-1}
-                          onClick={() => handleChoice(i)}
-                          className="block w-full text-left transition-colors hover:text-accent"
-                        >
-                          <span className="text-text-dim">{i + 1}.</span>{" "}
-                          <span className="text-cyan">{c.text}</span>
-                          {settings.showTranslations && (
-                            <span className="ml-2 text-text-dim italic">
-                              ({c.translation})
-                            </span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
               {/* Vocabulary */}
               {settings.showVocabulary &&
                 message.vocabulary &&
@@ -1148,6 +1121,33 @@ export default function GameTerminal() {
                   </button>
                 </div>
               )}
+
+              {/* Choices */}
+              {state === "playing" &&
+                settings.showChoices &&
+                message.choices &&
+                message.choices.length > 0 && (
+                  <div className="border-t border-border pt-3">
+                    <div className="space-y-1">
+                      {message.choices.map((c, i) => (
+                        <button
+                          key={i}
+                          tabIndex={-1}
+                          onClick={() => handleChoice(i)}
+                          className="block w-full text-left transition-colors hover:text-accent"
+                        >
+                          <span className="text-text-dim">{i + 1}.</span>{" "}
+                          <span className="text-cyan">{c.text}</span>
+                          {settings.showTranslations && (
+                            <span className="ml-2 text-text-dim italic">
+                              ({c.translation})
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
             </div>
           )}
         </div>
