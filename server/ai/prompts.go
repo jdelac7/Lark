@@ -80,8 +80,8 @@ Always respond with valid JSON matching this schema:
   "translation": "%s translation of narrative",
   "npcDialog": "NPC dialog in target language (empty string if none)",
   "npcDialogTranslation": "%s translation (empty string if none)",
-  "correction": null or {"original": "...", "corrected": "...", "explanation": "explanation in %s"},
   "vocabulary": [{"word": "NEW word not in any previous turn", "translation": "%s translation", "usage": "gender/class + example sentence in %s"}],
+  "correction": null or {"original": "...", "corrected": "...", "explanation": "explanation in %s"},
   "choices": [{"text": "1st person choice in target language", "translation": "%s translation"}],
   "finished": false
 }
@@ -189,8 +189,8 @@ Always respond with valid JSON matching this schema:
   "translation": "%s translation of narrative",
   "npcDialog": "NPC dialog in target language (empty string if none)",
   "npcDialogTranslation": "%s translation (empty string if none)",
-  "correction": null or {"original": "...", "corrected": "...", "explanation": "explanation in %s"},
   "vocabulary": [{"word": "NEW word not in any previous turn", "translation": "%s translation", "usage": "gender/class + example sentence in %s"}],
+  "correction": null or {"original": "...", "corrected": "...", "explanation": "explanation in %s"},
   "choices": [{"text": "1st person choice in target language", "translation": "%s translation"}],
   "finished": false
 }

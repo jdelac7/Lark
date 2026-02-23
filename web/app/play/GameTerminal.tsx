@@ -1066,22 +1066,6 @@ export default function GameTerminal() {
                 </div>
               )}
 
-              {/* Correction */}
-              {settings.showGrammar && correction && (
-                <div className="border border-yellow/30 bg-yellow/5 p-3">
-                  <div className="mb-1 text-xs font-bold text-yellow">
-                    CORRECTION
-                  </div>
-                  <div className="text-text-dim line-through">
-                    {correction.original}
-                  </div>
-                  <div className="text-green">{correction.corrected}</div>
-                  <div className="mt-1 text-xs text-yellow">
-                    {correction.explanation}
-                  </div>
-                </div>
-              )}
-
               {/* Vocabulary */}
               {settings.showVocabulary &&
                 message.vocabulary &&
@@ -1106,6 +1090,22 @@ export default function GameTerminal() {
                     </div>
                   </div>
                 )}
+
+              {/* Correction */}
+              {settings.showGrammar && correction && (
+                <div className="border border-yellow/30 bg-yellow/5 p-3">
+                  <div className="mb-1 text-xs font-bold text-yellow">
+                    CORRECTION
+                  </div>
+                  <div className="text-text-dim line-through">
+                    {correction.original}
+                  </div>
+                  <div className="text-green">{correction.corrected}</div>
+                  <div className="mt-1 text-xs text-yellow">
+                    {correction.explanation}
+                  </div>
+                </div>
+              )}
 
               {/* Finished */}
               {state === "finished" && (
