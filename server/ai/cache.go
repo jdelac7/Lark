@@ -92,6 +92,20 @@ func messageToJSON(msg *api.GameMessage) string {
 	return string(data)
 }
 
+// simulateStream sends cached text to a StreamCallback in small chunks to
+// replicate the progressive feel of a real streaming response.
+func simulateStream(text string, callback StreamCallback) {
+	const chunkSize = 8
+	for i := 0; i < len(text); i += chunkSize {
+		end := i + chunkSize
+		if end > len(text) {
+			end = len(text)
+		}
+		callback(text[i:end])
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
 // CachedClient wraps an ai.Client and caches first-turn responses for premade scenarios.
 // Subsequent turns (SendInput/SendInputStream) pass through to the inner client uncached.
 type CachedClient struct {
@@ -142,7 +156,7 @@ func (c *CachedClient) StartScenarioStream(ctx context.Context, scenario *api.Sc
 		if entry := c.cache.get(key); entry != nil {
 			log.Printf("[cache] HIT StartScenarioStream scenario=%s lang=%s", scenario.ID, lang.Code)
 			if callback != nil {
-				callback(entry.ResponseText)
+				simulateStream(entry.ResponseText, callback)
 			}
 			history := c.inner.BuildStartHistory(scenario, lang, explanationLang, entry.ResponseText)
 			msg := entry.Message

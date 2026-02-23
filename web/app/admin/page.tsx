@@ -9,6 +9,7 @@ import {
   getUniquePlayerCount,
   getCostSplitTotals,
 } from "@/lib/cost-db";
+import Link from "next/link";
 import AdminStats from "./components/AdminStats";
 import UsersTable from "./components/UsersTable";
 import CostChart from "./components/CostChart";
@@ -77,9 +78,17 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-lg font-bold text-accent">dashboard</h1>
-        <p className="text-xs text-text-dim">system overview and analytics</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-bold text-accent">dashboard</h1>
+          <p className="text-xs text-text-dim">system overview and analytics</p>
+        </div>
+        <Link
+          href="/admin/transactions"
+          className="rounded border border-border bg-bg-secondary px-4 py-2 text-xs font-medium text-text transition-colors hover:border-accent hover:text-accent"
+        >
+          all transactions
+        </Link>
       </div>
 
       {!costAvailable && (

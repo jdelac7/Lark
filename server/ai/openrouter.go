@@ -17,24 +17,27 @@ import (
 
 const (
 	openRouterBaseURL   = "https://openrouter.ai/api/v1/chat/completions"
-	openRouterTimeout   = 15 * time.Second
+	openRouterTimeout   = 30 * time.Second
 	openRouterMaxRetries = 2
 	openRouterRetryDelay = 2 * time.Second
 )
 
 // OpenRouterClient uses the OpenRouter API (OpenAI-compatible).
 type OpenRouterClient struct {
-	apiKey string
-	model  string
-	http   *http.Client
+	apiKey    string
+	model     string
+	http      *http.Client
+	reasoning *orReasoning
 }
 
 // NewOpenRouterClient creates an OpenRouter client.
+// Reasoning is disabled by default for models that support it (e.g. Grok).
 func NewOpenRouterClient(apiKey, model string) *OpenRouterClient {
 	return &OpenRouterClient{
-		apiKey: apiKey,
-		model:  model,
-		http:   &http.Client{},
+		apiKey:    apiKey,
+		model:     model,
+		http:      &http.Client{},
+		reasoning: &orReasoning{Enabled: false},
 	}
 }
 
@@ -52,6 +55,11 @@ type orRequest struct {
 	Temperature    float32           `json:"temperature"`
 	MaxTokens      int               `json:"max_tokens"`
 	Stream         bool              `json:"stream"`
+	Reasoning      *orReasoning      `json:"reasoning,omitempty"`
+}
+
+type orReasoning struct {
+	Enabled bool `json:"enabled"`
 }
 
 type orResponseFormat struct {
@@ -64,6 +72,7 @@ type orResponse struct {
 		Message struct {
 			Content string `json:"content"`
 		} `json:"message"`
+		FinishReason string `json:"finish_reason"`
 	} `json:"choices"`
 	Usage *struct {
 		PromptTokens     int     `json:"prompt_tokens"`
@@ -84,7 +93,8 @@ func (c *OpenRouterClient) send(ctx context.Context, messages []orMessage) (stri
 			Type: "json_object",
 		},
 		Temperature: 0.8,
-		MaxTokens:   2048,
+		MaxTokens:   8192,
+		Reasoning:   c.reasoning,
 	}
 
 	body, err := json.Marshal(reqBody)
@@ -158,12 +168,29 @@ func (c *OpenRouterClient) send(ctx context.Context, messages []orMessage) (stri
 			return "", 0, fmt.Errorf("no choices in response")
 		}
 
+		content := orResp.Choices[0].Message.Content
+		finishReason := orResp.Choices[0].FinishReason
+
+		// Detect output truncation: finish_reason=length or invalid JSON content
+		truncated := finishReason == "length"
+		if !truncated && content != "" {
+			// Check if the content is valid JSON — truncated responses produce invalid JSON
+			if !json.Valid([]byte(content)) {
+				truncated = true
+			}
+		}
+		if truncated {
+			lastErr = fmt.Errorf("response truncated (finish_reason=%s)", finishReason)
+			log.Printf("[openrouter] response truncated (finish_reason=%s, %d bytes content), retrying", finishReason, len(content))
+			continue
+		}
+
 		var cost float64
 		if orResp.Usage != nil {
 			cost = orResp.Usage.Cost
 		}
 
-		return orResp.Choices[0].Message.Content, cost, nil
+		return content, cost, nil
 	}
 
 	return "", 0, fmt.Errorf("failed after retries: %w", lastErr)
@@ -194,8 +221,9 @@ func (c *OpenRouterClient) sendStream(ctx context.Context, messages []orMessage,
 			Type: "json_object",
 		},
 		Temperature: 0.8,
-		MaxTokens:   2048,
+		MaxTokens:   8192,
 		Stream:      true,
+		Reasoning:   c.reasoning,
 	}
 
 	body, err := json.Marshal(reqBody)

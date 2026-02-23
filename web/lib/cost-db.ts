@@ -140,6 +140,34 @@ export function getUniquePlayerCount(): number {
   return row.count;
 }
 
+export function getAllCostEvents(): {
+  id: number;
+  player_id: string;
+  scenario_id: string;
+  language: string;
+  is_custom: number;
+  amount: number;
+  created_at: string;
+}[] {
+  const db = getCostDb();
+  if (!db) return [];
+  return db
+    .prepare(
+      `SELECT id, player_id, scenario_id, language, is_custom, amount, created_at
+      FROM cost_events
+      ORDER BY created_at DESC`
+    )
+    .all() as {
+    id: number;
+    player_id: string;
+    scenario_id: string;
+    language: string;
+    is_custom: number;
+    amount: number;
+    created_at: string;
+  }[];
+}
+
 export function getCostSplitTotals(): { premade: number; custom: number } {
   const db = getCostDb();
   if (!db) return { premade: 0, custom: 0 };

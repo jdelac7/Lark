@@ -38,6 +38,9 @@ func main() {
 		case "apikey":
 			handleAPIKeyCommand(os.Args[1:])
 			return
+		case "playtest":
+			handlePlaytestCommand(os.Args[1:])
+			return
 		}
 	}
 
