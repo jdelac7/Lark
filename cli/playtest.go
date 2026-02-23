@@ -13,6 +13,7 @@ import (
 	"github.com/joshburnsxyz/lark/api"
 )
 
+
 type playtestTurnOutput struct {
 	Turn       int             `json:"turn"`
 	InputMode  string          `json:"inputMode"`
@@ -84,28 +85,18 @@ func handlePlaytestCommand(args []string) {
 		os.Exit(1)
 	}
 
-	// Mode selection: BYOK (local) if API key is set, otherwise server mode
-	var gameClient GameClient
-	apiKey := getAPIKey()
-	if apiKey != "" {
-		gameClient = NewLocalClient(apiKey, getBYOKModel())
-	} else {
-		if err := checkLicense(); err != nil {
-			emitPlaytestError("no API key and no valid license — export LARK_API_KEY or run: lark activate <key>")
-			os.Exit(1)
-		}
-		serverURL := os.Getenv("LARK_SERVER")
-		if serverURL == "" {
-			serverURL = "https://lark.black"
-		}
-		playerID := os.Getenv("LARK_PLAYER_ID")
-		if playerID == "" {
-			b := make([]byte, 16)
-			rand.Read(b)
-			playerID = hex.EncodeToString(b)
-		}
-		gameClient = NewClient(serverURL, playerID)
+	// Always use server mode so cost events are tracked
+	serverURL := os.Getenv("LARK_SERVER")
+	if serverURL == "" {
+		serverURL = "http://localhost:9292"
 	}
+	playerID := os.Getenv("LARK_PLAYER_ID")
+	if playerID == "" {
+		b := make([]byte, 16)
+		rand.Read(b)
+		playerID = hex.EncodeToString(b)
+	}
+	var gameClient GameClient = NewClient(serverURL, playerID)
 
 	seedVal := *seed
 	if seedVal == 0 {

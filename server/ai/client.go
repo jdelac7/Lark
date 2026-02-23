@@ -35,5 +35,5 @@ func FormatChoiceInput(choiceIndex int, choiceText string) string {
 
 // FormatFreeTextInput formats free text input for the LLM.
 func FormatFreeTextInput(text string) string {
-	return fmt.Sprintf("[PLAYER FREE TEXT - evaluate grammar]: %q", text)
+	return fmt.Sprintf("[PLAYER FREE TEXT]: %q\nContinue the story with the full JSON response (narrative, translation, npcDialog, choices, vocabulary, correction, finished). Include a \"correction\" object evaluating the player's grammar.", text)
 }
