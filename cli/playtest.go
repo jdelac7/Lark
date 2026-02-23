@@ -42,7 +42,7 @@ type playtestSummary struct {
 
 func handlePlaytestCommand(args []string) {
 	fs := flag.NewFlagSet("playtest", flag.ExitOnError)
-	maxTurns := fs.Int("max-turns", 20, "maximum number of turns")
+	maxTurns := fs.Int("max-turns", 30, "maximum number of turns (0 = no limit)")
 	seed := fs.Int64("seed", 0, "random seed (0 = current time)")
 	freeTextRatio := fs.Float64("free-text-ratio", 0, "fraction of turns to use free text input (0.0-1.0)")
 
@@ -133,7 +133,7 @@ func runPlaytest(client GameClient, scenario *api.Scenario, lang *api.Language, 
 	turn := 0
 	finished := msg.Finished
 
-	for !finished && turn < maxTurns {
+	for !finished && (maxTurns <= 0 || turn < maxTurns) {
 		if len(msg.Choices) == 0 {
 			break
 		}

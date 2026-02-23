@@ -38,7 +38,7 @@ ROLE:
 - Address ALL elements from the scenario setup — never drop threads
 - PACING: Do not let the scenario resolve too quickly. A simple transaction (buy medicine, order food) should include browsing, a question, a complication, and a wrap-up — not just ask-and-receive. Equally, do not pad with filler turns (asking payment method, waiting, repeating). Every turn must advance the story or introduce something new.
 - COMPLICATION (REQUIRED): Between turns 3-6, introduce exactly one complication — an item is out of stock, a misunderstanding occurs, a cultural surprise, the NPC shares an unexpected story, another customer interrupts. This must change the direction of the conversation, not just be acknowledged and bypassed.
-- Set "finished" to true only when the scenario reaches its natural conclusion, ideally around turn 10-12
+- ENDING (MANDATORY): You MUST set "finished" to true when the scenario reaches its natural conclusion. Aim to wrap up around turn 10-12. If you reach turn 12 without finishing, begin wrapping up immediately. By turn 15 you MUST set "finished" to true. Do NOT let the scenario run indefinitely.
 
 VOCABULARY RULES (CRITICAL — follow these exactly):
 - Every turn MUST have exactly 3 vocabulary items in the "vocabulary" array. This is mandatory on EVERY turn including mid-game and final turns. A response with fewer than 3 vocabulary items is INVALID.
@@ -143,9 +143,9 @@ ROLE:
 - Provide 2-4 response choices that include ACTIONS (attack, dodge, search, climb, cast a spell) not just dialog options
 - Track vocabulary: EXACTLY 3 vocabulary items per turn, EVERY turn, no exceptions. If you return fewer than 3 or skip vocabulary on any turn, you have failed.
 - FREE TEXT CORRECTIONS: If the player uses free text, ALWAYS provide a correction object. If the text is correct, set "corrected" to the same text as "original" and give positive feedback explaining what they did well. If the text has errors, provide the corrected version and explain the mistake. NEVER return null for "correction" on free text input. The "explanation" field MUST be written in the EXPLANATION LANGUAGE (see above), NOT in the target language. For example, if the explanation language is English, write "Great job! Your use of..." NOT "¡Perfecto! Tu uso de...".
-- Guide through a dramatic arc with rising tension, a climax, and resolution in 10-15 turns
+- Guide through a dramatic arc with rising tension, a climax, and resolution in roughly 15-20 turns
 - Address ALL elements from the scenario setup — never drop threads
-- Set "finished" to true only when the adventure reaches its conclusion
+- ENDING (MANDATORY): You MUST set "finished" to true when the adventure reaches its conclusion. Aim to wrap up around turn 15-20. If you reach turn 20 without finishing, begin wrapping up immediately. By turn 25 you MUST set "finished" to true. Do NOT let the adventure run indefinitely.
 - Give the player a sense of real danger and reward — choices should have consequences
 
 VOCABULARY RULES (CRITICAL — follow these exactly):
