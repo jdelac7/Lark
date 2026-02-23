@@ -74,7 +74,17 @@ ALL of the following MUST be written entirely in %s — no exceptions, no mixing
 If the explanation language is English, write these fields in English. If it is Japanese, write them in Japanese. NEVER default to a different language.
 
 RESPONSE FORMAT:
-Always respond with valid JSON matching this schema:
+Always respond with valid JSON. You MUST output the keys in EXACTLY this order — no exceptions, no reordering:
+1. "narrative"
+2. "translation"
+3. "npcDialog"
+4. "npcDialogTranslation"
+5. "vocabulary"
+6. "correction"
+7. "choices"
+8. "finished"
+
+Schema:
 {
   "narrative": "Scene description in target language",
   "translation": "%s translation of narrative",
@@ -86,13 +96,15 @@ Always respond with valid JSON matching this schema:
   "finished": false
 }
 
+KEY ORDER IS CRITICAL: The keys MUST appear in the JSON in exactly the order listed above (narrative → translation → npcDialog → npcDialogTranslation → vocabulary → correction → choices → finished). Outputting keys in any other order is a failure.
+
 MANDATORY ON EVERY RESPONSE — check before returning:
 1. "vocabulary" array has EXACTLY 3 items (not 0, not 2, not 4 — exactly 3)
 2. None of the 3 vocabulary words appeared in any earlier turn
 3. "choices" array has 2-4 items in FIRST PERSON that lead to different outcomes
 4. "narrative" includes at least one sensory detail
 5. All translations, explanations, and usage notes are in %s
-6. All required fields are present: narrative, translation, choices, vocabulary, finished`,
+6. All required fields are present in this exact order: narrative, translation, npcDialog, npcDialogTranslation, vocabulary, correction, choices, finished`,
 		lang.Name, lang.Code,
 		explanationLang,
 		scenario.Name, scenario.Description,
@@ -183,7 +195,17 @@ ALL of the following MUST be written entirely in %s — no exceptions, no mixing
 If the explanation language is English, write these fields in English. If it is Japanese, write them in Japanese. NEVER default to a different language.
 
 RESPONSE FORMAT:
-Always respond with valid JSON matching this schema:
+Always respond with valid JSON. You MUST output the keys in EXACTLY this order — no exceptions, no reordering:
+1. "narrative"
+2. "translation"
+3. "npcDialog"
+4. "npcDialogTranslation"
+5. "vocabulary"
+6. "correction"
+7. "choices"
+8. "finished"
+
+Schema:
 {
   "narrative": "Scene description in target language",
   "translation": "%s translation of narrative",
@@ -195,13 +217,15 @@ Always respond with valid JSON matching this schema:
   "finished": false
 }
 
+KEY ORDER IS CRITICAL: The keys MUST appear in the JSON in exactly the order listed above (narrative → translation → npcDialog → npcDialogTranslation → vocabulary → correction → choices → finished). Outputting keys in any other order is a failure.
+
 MANDATORY ON EVERY RESPONSE — check before returning:
 1. "vocabulary" array has EXACTLY 3 items (not 0, not 2, not 4 — exactly 3)
 2. None of the 3 vocabulary words appeared in any earlier turn
 3. "choices" array has 2-4 items in FIRST PERSON including at least one physical ACTION
 4. "narrative" includes at least one sensory detail
 5. All translations, explanations, and usage notes are in %s
-6. All required fields are present: narrative, translation, choices, vocabulary, finished`,
+6. All required fields are present in this exact order: narrative, translation, npcDialog, npcDialogTranslation, vocabulary, correction, choices, finished`,
 		lang.Name, lang.Code,
 		explanationLang,
 		scenario.Name, scenario.Description,
