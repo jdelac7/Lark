@@ -92,17 +92,19 @@ func messageToJSON(msg *api.GameMessage) string {
 	return string(data)
 }
 
-// simulateStream sends cached text to a StreamCallback in small chunks to
+// simulateStream sends cached text to a StreamCallback in chunks to
 // replicate the progressive feel of a real streaming response.
+// Uses larger chunks with minimal delay so cached responses feel snappy
+// while still triggering the streaming UI on the frontend.
 func simulateStream(text string, callback StreamCallback) {
-	const chunkSize = 8
+	const chunkSize = 200
 	for i := 0; i < len(text); i += chunkSize {
 		end := i + chunkSize
 		if end > len(text) {
 			end = len(text)
 		}
 		callback(text[i:end])
-		time.Sleep(5 * time.Millisecond)
+		time.Sleep(15 * time.Millisecond)
 	}
 }
 

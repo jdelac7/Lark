@@ -1082,6 +1082,33 @@ export default function GameTerminal() {
                 </div>
               )}
 
+              {/* Choices */}
+              {state === "playing" &&
+                settings.showChoices &&
+                message.choices &&
+                message.choices.length > 0 && (
+                  <div className="border-t border-border pt-3">
+                    <div className="space-y-1">
+                      {message.choices.map((c, i) => (
+                        <button
+                          key={i}
+                          tabIndex={-1}
+                          onClick={() => handleChoice(i)}
+                          className="block w-full text-left transition-colors hover:text-accent"
+                        >
+                          <span className="text-text-dim">{i + 1}.</span>{" "}
+                          <span className="text-cyan">{c.text}</span>
+                          {settings.showTranslations && (
+                            <span className="ml-2 text-text-dim italic">
+                              ({c.translation})
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
               {/* Vocabulary */}
               {settings.showVocabulary &&
                 message.vocabulary &&
@@ -1121,33 +1148,6 @@ export default function GameTerminal() {
                   </button>
                 </div>
               )}
-
-              {/* Choices */}
-              {state === "playing" &&
-                settings.showChoices &&
-                message.choices &&
-                message.choices.length > 0 && (
-                  <div className="border-t border-border pt-3">
-                    <div className="space-y-1">
-                      {message.choices.map((c, i) => (
-                        <button
-                          key={i}
-                          tabIndex={-1}
-                          onClick={() => handleChoice(i)}
-                          className="block w-full text-left transition-colors hover:text-accent"
-                        >
-                          <span className="text-text-dim">{i + 1}.</span>{" "}
-                          <span className="text-cyan">{c.text}</span>
-                          {settings.showTranslations && (
-                            <span className="ml-2 text-text-dim italic">
-                              ({c.translation})
-                            </span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
             </div>
           )}
         </div>
