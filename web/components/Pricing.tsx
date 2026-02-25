@@ -2,7 +2,6 @@
 
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
-import CopyCmd from "./CopyCmd";
 
 const sharedFeatures = [
   "All 40 built-in scenarios",
@@ -131,7 +130,8 @@ export default function Pricing() {
                 </div>
                 {licenseKey && (
                   <div className="mb-3 border border-border bg-bg p-3 text-xs">
-                    <CopyCmd cmd={`lark activate ${licenseKey}`} className="text-accent" />
+                    <div className="text-text-dim">$ lark activate</div>
+                    <div className="mt-1 select-all text-accent">{licenseKey}</div>
                   </div>
                 )}
                 <a

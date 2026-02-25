@@ -9,8 +9,6 @@ export default function SuccessContent({
   licenseKey: string | null;
   error: string | null;
 }) {
-  const keyDisplay = licenseKey || "<YOUR-LICENSE-KEY>";
-
   return (
     <div className="flex min-h-screen items-center justify-center px-6">
       <div className="w-full max-w-lg">
@@ -47,22 +45,23 @@ export default function SuccessContent({
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent/10 text-xs font-bold text-accent">
                   2
                 </span>
-                <div className="min-w-0 flex-1">
+                <div>
                   <p>Activate your license:</p>
-                  <div className="mt-1 rounded border border-border bg-bg px-3 py-2">
-                    <CopyCmd cmd={`lark activate ${keyDisplay}`} className="text-green" />
-                  </div>
+                  <code className="mt-1 block rounded border border-border bg-bg px-3 py-2 text-green">
+                    lark activate{" "}
+                    {licenseKey ? licenseKey : "<YOUR-LICENSE-KEY>"}
+                  </code>
                 </div>
               </div>
               <div className="flex gap-3">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent/10 text-xs font-bold text-accent">
                   3
                 </span>
-                <div className="min-w-0 flex-1">
+                <div>
                   <p>Start playing:</p>
-                  <div className="mt-1 rounded border border-border bg-bg px-3 py-2">
-                    <CopyCmd cmd="lark" className="text-green" />
-                  </div>
+                  <code className="mt-1 block rounded border border-border bg-bg px-3 py-2 text-green">
+                    lark
+                  </code>
                 </div>
               </div>
             </div>
