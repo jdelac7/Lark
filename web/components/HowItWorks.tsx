@@ -2,6 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
+import CopyCmd from "./CopyCmd";
 
 export default function HowItWorks() {
   const { data: session } = useSession();
@@ -41,9 +42,7 @@ export default function HowItWorks() {
             <span className="text-text-dim">(CLI only &mdash; skip for browser)</span>
           </div>
           <div className="border border-border bg-bg-secondary p-4">
-            <div className="text-green">
-              $ curl -fsSL https://lark.black/install.sh | sh
-            </div>
+            <CopyCmd cmd="curl -fsSL https://lark.black/install.sh | sh" className="text-green" />
             <div className="mt-2 text-accent">
               ✓ Lark installed to ~/.local/bin/lark
             </div>
@@ -67,9 +66,7 @@ export default function HowItWorks() {
                 key
               </div>
               <div className="border border-border bg-bg-secondary p-4">
-                <div className="text-green">
-                  $ open https://openrouter.ai/keys
-                </div>
+                <CopyCmd cmd="open https://openrouter.ai/keys" className="text-green" />
                 <div className="mt-2 text-text-dim">
                   &rarr; Create a free account on OpenRouter
                 </div>
@@ -85,11 +82,9 @@ export default function HowItWorks() {
                 &amp; play
               </div>
               <div className="border border-border bg-bg-secondary p-4">
-                <div className="text-green">
-                  $ lark apikey YOUR-OPENROUTER-KEY
-                </div>
+                <CopyCmd cmd="lark apikey YOUR-OPENROUTER-KEY" className="text-green" />
                 <div className="mt-2 text-cyan">✓ API key saved!</div>
-                <div className="mt-2 text-green">$ lark</div>
+                <CopyCmd cmd="lark" className="mt-2 text-green" />
                 <div className="mt-2 text-cyan">
                   &nbsp;&nbsp;Welcome back, adventurer. Where shall we go today?
                 </div>
@@ -108,9 +103,7 @@ export default function HowItWorks() {
                 <span className="text-accent">Step 2</span> &mdash; Subscribe
               </div>
               <div className="border border-border bg-bg-secondary p-4">
-                <div className="text-green">
-                  $ open https://lark.black
-                </div>
+                <CopyCmd cmd="open https://lark.black" className="text-green" />
                 <div className="mt-2 text-text-dim">
                   &rarr; Subscribe for $2.99/month
                 </div>
@@ -126,13 +119,11 @@ export default function HowItWorks() {
                 &amp; play
               </div>
               <div className="border border-border bg-bg-secondary p-4">
-                <div className="text-green">
-                  $ lark activate {keyDisplay}
-                </div>
+                <CopyCmd cmd={`lark activate ${keyDisplay}`} className="text-green" />
                 <div className="mt-2 text-accent">
                   ✓ License activated successfully
                 </div>
-                <div className="mt-2 text-green">$ lark</div>
+                <CopyCmd cmd="lark" className="mt-2 text-green" />
                 <div className="mt-2 text-accent">
                   &nbsp;&nbsp;Welcome back, adventurer. Where shall we go today?
                 </div>
