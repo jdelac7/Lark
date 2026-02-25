@@ -15,8 +15,8 @@ type TurnResponse struct {
 	NPCDialog            string          `json:"npcDialog"`
 	NPCDialogTranslation string          `json:"npcDialogTranslation"`
 	Vocabulary           []api.VocabItem `json:"vocabulary"`
-	Correction           *api.Correction `json:"correction"`
 	Choices              []api.Choice    `json:"choices"`
+	Correction           *api.Correction `json:"correction"`
 	Finished             bool            `json:"finished"`
 }
 
@@ -29,8 +29,8 @@ type flexTurnResponse struct {
 	NPCDialog            string            `json:"npcDialog"`
 	NPCDialogTranslation string            `json:"npcDialogTranslation"`
 	Vocabulary           json.RawMessage   `json:"vocabulary"`
-	Correction           *api.Correction   `json:"correction"`
 	Choices              json.RawMessage   `json:"choices"`
+	Correction           *api.Correction   `json:"correction"`
 	Finished             bool              `json:"finished"`
 }
 

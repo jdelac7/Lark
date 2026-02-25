@@ -80,8 +80,8 @@ Always respond with valid JSON. You MUST output the keys in EXACTLY this order �
 3. "npcDialog"
 4. "npcDialogTranslation"
 5. "vocabulary"
-6. "correction"
-7. "choices"
+6. "choices"
+7. "correction"
 8. "finished"
 
 Schema:
@@ -91,12 +91,12 @@ Schema:
   "npcDialog": "NPC dialog in target language (empty string if none)",
   "npcDialogTranslation": "%s translation (empty string if none)",
   "vocabulary": [{"word": "NEW word not in any previous turn", "translation": "%s translation", "usage": "gender/class + example sentence in %s"}],
-  "correction": null or {"original": "...", "corrected": "...", "explanation": "explanation in %s"},
   "choices": [{"text": "1st person choice in target language", "translation": "%s translation"}],
+  "correction": null or {"original": "...", "corrected": "...", "explanation": "explanation in %s"},
   "finished": false
 }
 
-KEY ORDER IS CRITICAL: The keys MUST appear in the JSON in exactly the order listed above (narrative → translation → npcDialog → npcDialogTranslation → vocabulary → correction → choices → finished). Outputting keys in any other order is a failure.
+KEY ORDER IS CRITICAL: The keys MUST appear in the JSON in exactly the order listed above (narrative → translation → npcDialog → npcDialogTranslation → vocabulary → choices → correction → finished). Outputting keys in any other order is a failure.
 
 MANDATORY ON EVERY RESPONSE — check before returning:
 1. "vocabulary" array has EXACTLY 3 items (not 0, not 2, not 4 — exactly 3)
@@ -104,7 +104,7 @@ MANDATORY ON EVERY RESPONSE — check before returning:
 3. "choices" array has 2-4 items in FIRST PERSON that lead to different outcomes
 4. "narrative" includes at least one sensory detail
 5. All translations, explanations, and usage notes are in %s
-6. All required fields are present in this exact order: narrative, translation, npcDialog, npcDialogTranslation, vocabulary, correction, choices, finished`,
+6. All required fields are present in this exact order: narrative, translation, npcDialog, npcDialogTranslation, vocabulary, choices, correction, finished`,
 		lang.Name, lang.Code,
 		explanationLang,
 		scenario.Name, scenario.Description,
@@ -201,8 +201,8 @@ Always respond with valid JSON. You MUST output the keys in EXACTLY this order �
 3. "npcDialog"
 4. "npcDialogTranslation"
 5. "vocabulary"
-6. "correction"
-7. "choices"
+6. "choices"
+7. "correction"
 8. "finished"
 
 Schema:
@@ -212,12 +212,12 @@ Schema:
   "npcDialog": "NPC dialog in target language (empty string if none)",
   "npcDialogTranslation": "%s translation (empty string if none)",
   "vocabulary": [{"word": "NEW word not in any previous turn", "translation": "%s translation", "usage": "gender/class + example sentence in %s"}],
-  "correction": null or {"original": "...", "corrected": "...", "explanation": "explanation in %s"},
   "choices": [{"text": "1st person choice in target language", "translation": "%s translation"}],
+  "correction": null or {"original": "...", "corrected": "...", "explanation": "explanation in %s"},
   "finished": false
 }
 
-KEY ORDER IS CRITICAL: The keys MUST appear in the JSON in exactly the order listed above (narrative → translation → npcDialog → npcDialogTranslation → vocabulary → correction → choices → finished). Outputting keys in any other order is a failure.
+KEY ORDER IS CRITICAL: The keys MUST appear in the JSON in exactly the order listed above (narrative → translation → npcDialog → npcDialogTranslation → vocabulary → choices → correction → finished). Outputting keys in any other order is a failure.
 
 MANDATORY ON EVERY RESPONSE — check before returning:
 1. "vocabulary" array has EXACTLY 3 items (not 0, not 2, not 4 — exactly 3)
@@ -225,7 +225,7 @@ MANDATORY ON EVERY RESPONSE — check before returning:
 3. "choices" array has 2-4 items in FIRST PERSON including at least one physical ACTION
 4. "narrative" includes at least one sensory detail
 5. All translations, explanations, and usage notes are in %s
-6. All required fields are present in this exact order: narrative, translation, npcDialog, npcDialogTranslation, vocabulary, correction, choices, finished`,
+6. All required fields are present in this exact order: narrative, translation, npcDialog, npcDialogTranslation, vocabulary, choices, correction, finished`,
 		lang.Name, lang.Code,
 		explanationLang,
 		scenario.Name, scenario.Description,
