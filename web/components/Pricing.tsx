@@ -1,6 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
+import { useEffect, useState } from "react";
 
 const sharedFeatures = [
   "All 40 built-in scenarios",
@@ -16,6 +17,15 @@ export default function Pricing() {
   const isSubscribed = session?.user?.subscribed;
   const productId = process.env.NEXT_PUBLIC_POLAR_PRODUCT_ID;
   const checkoutUrl = `/api/checkout?products=${productId}`;
+  const [licenseKey, setLicenseKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isSubscribed) return;
+    fetch("/api/license-key")
+      .then((r) => r.json())
+      .then((d) => setLicenseKey(d.key))
+      .catch(() => {});
+  }, [isSubscribed]);
 
   // If not logged in, send to register first — checkout requires an account
   const subscribeHref = session ? checkoutUrl : `/register?callbackUrl=${encodeURIComponent(checkoutUrl)}`;
@@ -118,6 +128,21 @@ export default function Pricing() {
                 <div className="mb-3 border border-accent/30 bg-accent/10 py-3 text-center text-sm font-bold text-accent">
                   ✓ SUBSCRIBED
                 </div>
+                {licenseKey && (
+                  <div className="mb-3">
+                    <label className="text-xs font-semibold text-text-dim">
+                      Your License Key
+                    </label>
+                    <div className="mt-1 rounded border border-border bg-bg p-2">
+                      <code className="break-all text-xs text-accent">
+                        {licenseKey}
+                      </code>
+                    </div>
+                    <p className="mt-1 text-xs text-text-dim">
+                      Activate with: <code className="text-green">lark activate {licenseKey}</code>
+                    </p>
+                  </div>
+                )}
                 <a
                   href="https://polar.sh/settings/subscriptions"
                   target="_blank"
