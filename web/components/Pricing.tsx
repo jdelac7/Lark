@@ -129,18 +129,9 @@ export default function Pricing() {
                   ✓ SUBSCRIBED
                 </div>
                 {licenseKey && (
-                  <div className="mb-3">
-                    <label className="text-xs font-semibold text-text-dim">
-                      Your License Key
-                    </label>
-                    <div className="mt-1 rounded border border-border bg-bg p-2">
-                      <code className="break-all text-xs text-accent">
-                        {licenseKey}
-                      </code>
-                    </div>
-                    <p className="mt-1 text-xs text-text-dim">
-                      Activate with: <code className="text-green">lark activate {licenseKey}</code>
-                    </p>
+                  <div className="mb-3 border border-border bg-bg p-3 text-xs">
+                    <div className="text-text-dim">$ lark activate</div>
+                    <div className="mt-1 select-all text-accent">{licenseKey}</div>
                   </div>
                 )}
                 <a

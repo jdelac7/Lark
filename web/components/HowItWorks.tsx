@@ -1,4 +1,23 @@
+"use client";
+
+import { useSession } from "next-auth/react";
+import { useEffect, useState } from "react";
+
 export default function HowItWorks() {
+  const { data: session } = useSession();
+  const isSubscribed = session?.user?.subscribed;
+  const [licenseKey, setLicenseKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isSubscribed) return;
+    fetch("/api/license-key")
+      .then((r) => r.json())
+      .then((d) => setLicenseKey(d.key))
+      .catch(() => {});
+  }, [isSubscribed]);
+
+  const keyDisplay = licenseKey || "YOUR-LICENSE-KEY";
+
   return (
     <section id="quickstart" className="border-t border-border py-20">
       <div className="mx-auto max-w-4xl px-6">
@@ -108,7 +127,7 @@ export default function HowItWorks() {
               </div>
               <div className="border border-border bg-bg-secondary p-4">
                 <div className="text-green">
-                  $ lark activate YOUR-LICENSE-KEY
+                  $ lark activate {keyDisplay}
                 </div>
                 <div className="mt-2 text-accent">
                   ✓ License activated successfully
