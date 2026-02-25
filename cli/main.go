@@ -35,8 +35,17 @@ func main() {
 		case "deactivate":
 			handleDeactivateCommand()
 			return
+		case "logout":
+			handleLogoutCommand()
+			return
+		case "switch":
+			handleSwitchCommand()
+			return
 		case "apikey":
 			handleAPIKeyCommand(os.Args[1:])
+			return
+		case "help", "--help", "-h":
+			handleHelpCommand()
 			return
 		case "playtest":
 			handlePlaytestCommand(os.Args[1:])

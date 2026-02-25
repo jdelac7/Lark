@@ -363,3 +363,103 @@ func handleDeactivateCommand() {
 
 	fmt.Println("\n  License key removed.\n")
 }
+
+// handleLogoutCommand removes all stored credentials (license + API key).
+func handleLogoutCommand() {
+	dir, err := configDir()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+		os.Exit(1)
+	}
+
+	os.Remove(filepath.Join(dir, licenseFileName))
+	os.Remove(filepath.Join(dir, cacheFileName))
+	os.Remove(filepath.Join(dir, apikeyFileName))
+
+	fmt.Println("\n  Logged out. License key and API key removed.")
+	if os.Getenv("LARK_LICENSE_KEY") != "" || os.Getenv("LARK_API_KEY") != "" {
+		fmt.Println("  Note: environment variables are still set. Unset them with:")
+		if os.Getenv("LARK_LICENSE_KEY") != "" {
+			fmt.Println("    unset LARK_LICENSE_KEY")
+		}
+		if os.Getenv("LARK_API_KEY") != "" {
+			fmt.Println("    unset LARK_API_KEY")
+		}
+	}
+	fmt.Println()
+}
+
+// handleSwitchCommand switches between BYOK and subscription mode.
+func handleSwitchCommand() {
+	hasKey := getAPIKey() != ""
+	hasLicense := getLicenseKey() != ""
+
+	if hasKey {
+		// Currently in BYOK mode — switch to subscription
+		fmt.Println("\n  Currently using: BYOK (Bring Your Own Key)")
+		fmt.Println("  Switching to:   Subscription mode")
+		fmt.Println()
+		removeAPIKey()
+		fmt.Println("  API key removed.")
+		if os.Getenv("LARK_API_KEY") != "" {
+			fmt.Println("  Note: LARK_API_KEY env var is still set. Unset it with:")
+			fmt.Println("    unset LARK_API_KEY")
+			fmt.Println()
+		}
+		if hasLicense {
+			fmt.Println("  License key found. Run 'lark' to play.\n")
+		} else {
+			fmt.Println("  No license key found. Activate one with:")
+			fmt.Println("    lark activate <YOUR-LICENSE-KEY>")
+			fmt.Printf("\n  Get your license at: %s\n\n", websiteURL)
+		}
+	} else if hasLicense {
+		// Currently in subscription mode — switch to BYOK
+		fmt.Println("\n  Currently using: Subscription (license key)")
+		fmt.Println("  Switching to:   BYOK (Bring Your Own Key)")
+		fmt.Println()
+		dir, _ := configDir()
+		os.Remove(filepath.Join(dir, licenseFileName))
+		os.Remove(filepath.Join(dir, cacheFileName))
+		fmt.Println("  License key removed. Set your API key with:")
+		fmt.Println("    lark apikey <YOUR-OPENROUTER-KEY>")
+		fmt.Println()
+		fmt.Println("  Get a key at: https://openrouter.ai/keys\n")
+	} else {
+		fmt.Println("\n  No active mode detected. Choose one:")
+		fmt.Println()
+		fmt.Println("  Subscription:  lark activate <LICENSE-KEY>")
+		fmt.Println("  BYOK:          lark apikey <OPENROUTER-KEY>")
+		fmt.Printf("\n  Get a license at: %s\n", websiteURL)
+		fmt.Println("  Get an API key at: https://openrouter.ai/keys\n")
+	}
+}
+
+// handleHelpCommand prints usage information.
+func handleHelpCommand() {
+	fmt.Println(`
+  lark - Interactive language learning game
+
+  USAGE
+    lark                        Start playing
+    lark activate <key>         Activate a license key
+    lark deactivate             Remove license key
+    lark apikey <key>           Set OpenRouter API key (BYOK mode)
+    lark apikey --remove        Remove stored API key
+    lark switch                 Switch between subscription and BYOK mode
+    lark logout                 Remove all stored credentials
+    lark help                   Show this help
+
+  MODES
+    Subscription   Use a Lark license key ($2.99/month). Get yours at:
+                   ` + websiteURL + `
+
+    BYOK           Bring Your Own Key. Use your own OpenRouter API key:
+                   https://openrouter.ai/keys
+
+  CONFIGURATION
+    Config dir:    ~/.config/lark/
+    License key:   LARK_LICENSE_KEY env var or ~/.config/lark/license
+    API key:       LARK_API_KEY env var or ~/.config/lark/apikey
+`)
+}
