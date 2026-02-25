@@ -3,7 +3,7 @@ module github.com/joshburnsxyz/lark
 go 1.24.0
 
 require (
-	github.com/polarsource/polar-go v0.12.0
+	github.com/polarsource/polar-go v0.14.0
 	golang.org/x/term v0.40.0
 	google.golang.org/genai v1.46.0
 )

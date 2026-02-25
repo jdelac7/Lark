@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@polar-sh/nextjs": "^0.9.3",
-    "@polar-sh/sdk": "^0.30.0",
+    "@polar-sh/sdk": "^0.45.0",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.6.2",
     "nanoid": "^5.1.6",

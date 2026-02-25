@@ -33,11 +33,11 @@ export async function POST(request: NextRequest) {
   }
 
   switch (event.type) {
-    case "order.created": {
+    case "order.paid": {
       const customerId = event.data.customerId;
       const customerEmail = event.data.customer?.email;
       console.log(
-        `[Polar] Order created: ${event.data.id}, customer: ${customerId}`
+        `[Polar] Order paid: ${event.data.id}, customer: ${customerId}`
       );
       if (customerEmail && customerId) {
         linkPolarCustomer(customerEmail, customerId);
