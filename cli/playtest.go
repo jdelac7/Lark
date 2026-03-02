@@ -85,18 +85,24 @@ func handlePlaytestCommand(args []string) {
 		os.Exit(1)
 	}
 
-	// Always use server mode so cost events are tracked
-	serverURL := os.Getenv("LARK_SERVER")
-	if serverURL == "" {
-		serverURL = "http://localhost:9292"
+	// Mode selection: BYOK (local) vs Server, same as main()
+	var gameClient GameClient
+	apiKey := getAPIKey()
+	if apiKey != "" {
+		gameClient = NewLocalClient(apiKey, getBYOKModel())
+	} else {
+		serverURL := os.Getenv("LARK_SERVER")
+		if serverURL == "" {
+			serverURL = "http://localhost:9292"
+		}
+		playerID := os.Getenv("LARK_PLAYER_ID")
+		if playerID == "" {
+			b := make([]byte, 16)
+			rand.Read(b)
+			playerID = hex.EncodeToString(b)
+		}
+		gameClient = NewClient(serverURL, playerID)
 	}
-	playerID := os.Getenv("LARK_PLAYER_ID")
-	if playerID == "" {
-		b := make([]byte, 16)
-		rand.Read(b)
-		playerID = hex.EncodeToString(b)
-	}
-	var gameClient GameClient = NewClient(serverURL, playerID)
 
 	seedVal := *seed
 	if seedVal == 0 {
