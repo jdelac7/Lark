@@ -32,6 +32,16 @@ function getDb(): Database.Database {
     // Column already exists — ignore
   }
 
+  // Feedback table
+  _db.exec(`
+    CREATE TABLE IF NOT EXISTS feedback (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      email      TEXT,
+      message    TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+
   return _db;
 }
 
@@ -117,6 +127,32 @@ export function isAdmin(userId: string): boolean {
 
 export function getAllUsers(): User[] {
   return getDb().prepare("SELECT * FROM users ORDER BY created_at DESC").all() as User[];
+}
+
+export interface FeedbackRow {
+  id: number;
+  email: string | null;
+  message: string;
+  created_at: string;
+}
+
+export function createFeedback(message: string, email: string | null): void {
+  getDb()
+    .prepare("INSERT INTO feedback (email, message) VALUES (?, ?)")
+    .run(email, message);
+}
+
+export function getAllFeedback(): FeedbackRow[] {
+  return getDb()
+    .prepare("SELECT * FROM feedback ORDER BY created_at DESC")
+    .all() as FeedbackRow[];
+}
+
+export function getFeedbackCount(): number {
+  const row = getDb()
+    .prepare("SELECT COUNT(*) as count FROM feedback")
+    .get() as { count: number };
+  return row.count;
 }
 
 export default getDb;

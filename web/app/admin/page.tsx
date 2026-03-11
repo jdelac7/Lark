@@ -1,4 +1,4 @@
-import { getAllUsers } from "@/lib/db";
+import { getAllUsers, getFeedbackCount } from "@/lib/db";
 import {
   isCostDbAvailable,
   getTotalCostAllPlayers,
@@ -19,6 +19,7 @@ export const dynamic = "force-dynamic";
 export default function AdminPage() {
   const costAvailable = isCostDbAvailable();
   const users = getAllUsers();
+  const feedbackCount = getFeedbackCount();
 
   const totalCost = costAvailable ? getTotalCostAllPlayers() : 0;
   const playerCosts = costAvailable ? getPlayerCosts() : [];
@@ -74,6 +75,11 @@ export default function AdminPage() {
       value: `$${costSplit.custom.toFixed(4)}`,
       color: "text-purple",
     },
+    {
+      label: "feedback",
+      value: feedbackCount,
+      color: "text-yellow",
+    },
   ];
 
   return (
@@ -83,12 +89,20 @@ export default function AdminPage() {
           <h1 className="text-lg font-bold text-accent">dashboard</h1>
           <p className="text-xs text-text-dim">system overview and analytics</p>
         </div>
-        <Link
-          href="/admin/transactions"
-          className="rounded border border-border bg-bg-secondary px-4 py-2 text-xs font-medium text-text transition-colors hover:border-accent hover:text-accent"
-        >
-          all transactions
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href="/admin/feedback"
+            className="rounded border border-border bg-bg-secondary px-4 py-2 text-xs font-medium text-text transition-colors hover:border-accent hover:text-accent"
+          >
+            feedback
+          </Link>
+          <Link
+            href="/admin/transactions"
+            className="rounded border border-border bg-bg-secondary px-4 py-2 text-xs font-medium text-text transition-colors hover:border-accent hover:text-accent"
+          >
+            all transactions
+          </Link>
+        </div>
       </div>
 
       {!costAvailable && (

@@ -448,6 +448,8 @@ func handleHelpCommand() {
     lark apikey --remove        Remove stored API key
     lark switch                 Switch between subscription and BYOK mode
     lark logout                 Remove all stored credentials
+    lark update                 Update to the latest version
+    lark version                Show current version
     lark help                   Show this help
 
   MODES

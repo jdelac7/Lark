@@ -6,7 +6,7 @@ server:
 	go build -o server/server ./server
 
 cli:
-	go build -o cli/cli ./cli
+	go build -ldflags "-X main.Version=$$(git describe --tags --always 2>/dev/null || echo dev)" -o cli/cli ./cli
 
 run-server: server
 	./server/server

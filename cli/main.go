@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/joshburnsxyz/lark/api"
@@ -43,6 +44,12 @@ func main() {
 			return
 		case "apikey":
 			handleAPIKeyCommand(os.Args[1:])
+			return
+		case "update":
+			handleUpdateCommand()
+			return
+		case "version", "--version", "-v":
+			handleVersionCommand()
 			return
 		case "help", "--help", "-h":
 			handleHelpCommand()
@@ -334,6 +341,8 @@ func startFreshSession(client GameClient, byokMode bool, scenario api.Scenario, 
 	msg := &startResp.Message
 	var lastCorrection *api.Correction
 
+
+
 	// Save initial session state (server mode only — BYOK has no server sessions)
 	if !byokMode {
 		saveData.SaveSession(scenario.ID, lang.Code, &SavedSession{
@@ -354,6 +363,10 @@ func resumeSession(client GameClient, scenario api.Scenario, lang api.Language, 
 	lastCorrection := saved.LastCorrection
 
 	return gameLoop(client, false, scenario, lang, sessionID, msg, lastCorrection, saved.CustomPrompt, saveData)
+}
+
+func isSessionNotFound(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "session not found")
 }
 
 func gameLoop(client GameClient, byokMode bool, scenario api.Scenario, lang api.Language, sessionID string, msg *api.GameMessage, lastCorrection *api.Correction, customPrompt string, saveData *SaveData) bool {
@@ -383,70 +396,125 @@ func gameLoop(client GameClient, byokMode bool, scenario api.Scenario, lang api.
 			Correction:   lastCorrection,
 		})
 
-		var choiceIdx int
-		var freeText string
+		// Inner loop: read choice + send to server, retrying on error
+		// without re-rendering the full game screen (so error stays visible).
 		for {
-			choiceIdx, freeText = ReadChoice(len(msg.Choices))
-			if choiceIdx == -2 {
-				if handleCtrlC() {
-					return false
+			var choiceIdx int
+			var freeText string
+			for {
+				choiceIdx, freeText = ReadChoice(len(msg.Choices))
+				if choiceIdx == -2 {
+					if handleCtrlC() {
+						return false
+					}
+					continue
 				}
-				continue
+				break
 			}
-			break
-		}
 
-		ResetStreamState()
-		var rawJSON string
-		RenderStreamingScreen(scenario.Name, lang.Name, lastCorrection, "")
-		streamToken := func(token string) {
-			rawJSON += token
-			RenderStreamingScreen(scenario.Name, lang.Name, lastCorrection, rawJSON)
-		}
+			ResetStreamState()
+			var rawJSON string
+			RenderStreamingScreen(scenario.Name, lang.Name, lastCorrection, "")
+			streamToken := func(token string) {
+				rawJSON += token
+				RenderStreamingScreen(scenario.Name, lang.Name, lastCorrection, rawJSON)
+			}
 
-		var resp *api.PlayerInputResponse
-		var err error
-		if choiceIdx >= 0 {
-			resp, err = client.StreamSendChoice(sessionID, choiceIdx, streamToken)
-		} else {
-			resp, err = client.StreamSendFreeText(sessionID, freeText, streamToken)
-		}
-
-		if err != nil {
-			// Fallback to non-streaming
-			RenderThinkingScreen(scenario.Name, lang.Name)
+			var resp *api.PlayerInputResponse
+			var err error
 			if choiceIdx >= 0 {
-				resp, err = client.SendChoice(sessionID, choiceIdx)
+				resp, err = client.StreamSendChoice(sessionID, choiceIdx, streamToken)
 			} else {
-				resp, err = client.SendFreeText(sessionID, freeText)
+				resp, err = client.StreamSendFreeText(sessionID, freeText, streamToken)
 			}
-		}
 
-		if err != nil {
-			ShowCursor()
-			RenderGameScreen(&GameScreenData{
-				ScenarioName: scenario.Name,
-				Language:     lang.Name,
-				Message:      msg,
-				Correction:   lastCorrection,
-			})
-			PrintError("Error, try again: " + err.Error())
-			continue
-		}
+			if err != nil {
+				// Fallback to non-streaming
+				RenderThinkingScreen(scenario.Name, lang.Name)
+				if choiceIdx >= 0 {
+					resp, err = client.SendChoice(sessionID, choiceIdx)
+				} else {
+					resp, err = client.SendFreeText(sessionID, freeText)
+				}
+			}
 
-		lastCorrection = resp.Correction
-		msg = &resp.Message
+			if isSessionNotFound(err) {
+				// Server lost the session (restart, TTL expiry, etc.)
+				// Re-create the session transparently and replay the choice.
+				saveData.ClearSession(scenario.ID, lang.Code)
+				saveSaveData(saveData)
 
-		// Save session state after each turn (server mode only)
-		if !byokMode {
-			saveData.SaveSession(scenario.ID, lang.Code, &SavedSession{
-				SessionID:      sessionID,
-				ScenarioName:   scenario.Name,
-				LastMessage:    msg,
-				LastCorrection: lastCorrection,
-				CustomPrompt:   customPrompt,
-			})
-			saveSaveData(saveData)
+				explanationLang := explanationLangDisplay(&saveData.Settings)
+				ResetStreamState()
+				rawJSON = ""
+				RenderStreamingScreen(scenario.Name, lang.Name, lastCorrection, "")
+				onToken := func(token string) {
+					rawJSON += token
+					RenderStreamingScreen(scenario.Name, lang.Name, lastCorrection, rawJSON)
+				}
+
+				startResp, startErr := client.StreamStartScenarioCustom(scenario.ID, lang.Code, customPrompt, explanationLang, onToken)
+				if startErr != nil {
+					RenderThinkingScreen(scenario.Name, lang.Name)
+					startResp, startErr = client.StartScenarioCustom(scenario.ID, lang.Code, customPrompt, explanationLang)
+				}
+				if startErr != nil {
+					ShowCursor()
+					RenderGameScreen(&GameScreenData{
+						ScenarioName: scenario.Name,
+						Language:     lang.Name,
+						Message:      msg,
+						Correction:   lastCorrection,
+					})
+					PrintError("Error: " + startErr.Error())
+					continue
+				}
+
+				sessionID = startResp.SessionID
+				msg = &startResp.Message
+				lastCorrection = nil
+
+				if !byokMode {
+					saveData.SaveSession(scenario.ID, lang.Code, &SavedSession{
+						SessionID:    sessionID,
+						ScenarioName: scenario.Name,
+						LastMessage:  msg,
+						CustomPrompt: customPrompt,
+					})
+					saveSaveData(saveData)
+				}
+
+				break // exit inner loop to re-render with fresh session
+			}
+
+			if err != nil {
+				ShowCursor()
+				RenderGameScreen(&GameScreenData{
+					ScenarioName: scenario.Name,
+					Language:     lang.Name,
+					Message:      msg,
+					Correction:   lastCorrection,
+				})
+				PrintError("Error: " + err.Error())
+				continue // retry from ReadChoice; game screen + error stay visible
+			}
+
+			lastCorrection = resp.Correction
+			msg = &resp.Message
+
+			// Save session state after each turn (server mode only)
+			if !byokMode {
+				saveData.SaveSession(scenario.ID, lang.Code, &SavedSession{
+					SessionID:      sessionID,
+					ScenarioName:   scenario.Name,
+					LastMessage:    msg,
+					LastCorrection: lastCorrection,
+					CustomPrompt:   customPrompt,
+				})
+				saveSaveData(saveData)
+			}
+
+			break // success — exit inner loop to re-render with new message
 		}
 	}
 }
