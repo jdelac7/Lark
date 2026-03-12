@@ -33,7 +33,7 @@ func handleUpdateCommand() {
 	}
 	fmt.Println("done")
 
-	if remote == Version {
+	if normalizeVersion(remote) == normalizeVersion(Version) {
 		fmt.Println("  Already up to date.")
 		fmt.Println()
 		return
@@ -195,4 +195,14 @@ func replaceBinary(path string, data []byte) error {
 	}
 
 	return nil
+}
+
+// normalizeVersion extracts the semver core from a version string.
+// "v1.0.0-34-g0c180be" -> "1.0.0", "1.0.0" -> "1.0.0", "v1.0.0" -> "1.0.0"
+func normalizeVersion(v string) string {
+	v = strings.TrimPrefix(v, "v")
+	if idx := strings.IndexByte(v, '-'); idx >= 0 {
+		v = v[:idx]
+	}
+	return v
 }
