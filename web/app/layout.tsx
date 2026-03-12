@@ -23,6 +23,20 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <head>
+        <script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=G-VTSTFQZH2D"
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'G-VTSTFQZH2D');
+            `,
+          }}
+        />
         <link
           href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap"
           rel="stylesheet"
