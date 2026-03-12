@@ -543,12 +543,11 @@ export default function GameTerminal() {
     if (!sessionId || state !== "playing") return;
     setState("streaming");
     setStreamTokens("");
-    setCorrection(null);
 
     try {
       const result = await sendChoiceStream(sessionId, index, handleToken);
       setMessage(result.message);
-      setCorrection(result.correction || null);
+      if (result.correction) setCorrection(result.correction);
       setStreamTokens("");
       setState(result.message.finished ? "finished" : "playing");
       afterTurn(result.message, result.correction || null);
@@ -572,7 +571,6 @@ export default function GameTerminal() {
     }
     setState("streaming");
     setStreamTokens("");
-    setCorrection(null);
 
     try {
       const result = await sendFreeTextStream(sessionId, text, handleToken);
@@ -1025,6 +1023,20 @@ export default function GameTerminal() {
                             )}
                           </div>
                         ))}
+                      </div>
+                    </div>
+                  )}
+                  {settings.showGrammar && correction && (
+                    <div className="border border-yellow/30 bg-yellow/5 p-3">
+                      <div className="mb-1 text-xs font-bold text-yellow">
+                        CORRECTION
+                      </div>
+                      <div className="text-text-dim line-through">
+                        {correction.original}
+                      </div>
+                      <div className="text-green">{correction.corrected}</div>
+                      <div className="mt-1 text-xs text-yellow">
+                        {correction.explanation}
                       </div>
                     </div>
                   )}

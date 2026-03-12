@@ -229,7 +229,7 @@ func (c *Client) StreamStartScenario(scenarioID, language, explanationLang strin
 // StreamStartScenarioCustom begins a scenario with SSE streaming, optionally with a custom prompt.
 func (c *Client) StreamStartScenarioCustom(scenarioID, language, customPrompt, explanationLang string, onToken func(string)) (*api.StartResponse, error) {
 	var done streamDoneStartResponse
-	err := c.doStream("POST", "/api/v1/scenarios/start/stream", api.StartRequest{
+	err := c.doStream("POST", "/game-api/scenarios/start/stream", api.StartRequest{
 		ScenarioID:      scenarioID,
 		Language:        language,
 		CustomPrompt:    customPrompt,
@@ -247,7 +247,7 @@ func (c *Client) StreamStartScenarioCustom(scenarioID, language, customPrompt, e
 // StreamSendChoice sends a choice selection with SSE streaming.
 func (c *Client) StreamSendChoice(sessionID string, choiceIndex int, onToken func(string)) (*api.PlayerInputResponse, error) {
 	var done streamDoneInputResponse
-	err := c.doStream("POST", "/api/v1/game/input/stream", api.PlayerInputRequest{
+	err := c.doStream("POST", "/game-api/game/input/stream", api.PlayerInputRequest{
 		SessionID:   sessionID,
 		Mode:        api.InputModeChoice,
 		ChoiceIndex: choiceIndex,
@@ -264,7 +264,7 @@ func (c *Client) StreamSendChoice(sessionID string, choiceIndex int, onToken fun
 // StreamSendFreeText sends free text input with SSE streaming.
 func (c *Client) StreamSendFreeText(sessionID, text string, onToken func(string)) (*api.PlayerInputResponse, error) {
 	var done streamDoneInputResponse
-	err := c.doStream("POST", "/api/v1/game/input/stream", api.PlayerInputRequest{
+	err := c.doStream("POST", "/game-api/game/input/stream", api.PlayerInputRequest{
 		SessionID: sessionID,
 		Mode:      api.InputModeFreeText,
 		Text:      text,

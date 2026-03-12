@@ -107,9 +107,7 @@ func saveCache(c *licenseCache) error {
 }
 
 // masterKeys are license keys that bypass Polar validation entirely.
-var masterKeys = map[string]bool{
-	"DUSTYBLUE": true,
-}
+var masterKeys = map[string]bool{}
 
 // isMasterKey returns true if the key bypasses Polar validation.
 func isMasterKey(key string) bool {
