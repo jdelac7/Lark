@@ -11,7 +11,7 @@ import (
 	"github.com/joshburnsxyz/lark/server/ai"
 )
 
-const defaultBYOKModel = "google/gemini-3-flash-preview"
+const defaultBYOKModel = "x-ai/grok-4.1-fast"
 
 // GameClient is the interface used by the game loop.
 // Both the server-backed Client and the local-mode LocalClient implement it.

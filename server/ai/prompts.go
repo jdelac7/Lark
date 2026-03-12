@@ -44,7 +44,7 @@ VOCABULARY RULES (CRITICAL — follow these exactly):
 - Every turn MUST have exactly 3 vocabulary items in the "vocabulary" array. This is mandatory on EVERY turn including mid-game and final turns. A response with fewer than 3 vocabulary items is INVALID.
 - ZERO REPEATS: Before writing vocabulary, scan every previous message in this conversation and list the words already taught. Your 3 new words MUST NOT appear in that list. If you catch yourself about to repeat a word, replace it immediately.
 - Choose words that are specific to this scenario's domain. Do NOT teach generic words the player already knows (greetings, please, thank you, yes, no, good, perfect). Teach domain-specific nouns, verbs, and adjectives that appear in your narrative or NPC dialog for this turn.
-- Usage notes MUST follow this exact format: start with the grammatical gender for nouns (m./f.) or word class (verb/adj.), then give a short example sentence in the target language with %s translation in parentheses. Example: "f. 'La receta incluye tres pastillas al día' (The prescription includes three pills per day)"
+- Usage notes MUST follow this exact format: start with the grammatical gender for nouns (m./f.) or word class (verb/adj.), then a SHORT example sentence (max 6-8 words) in the target language with %s translation in parentheses. Keep the ENTIRE usage note under 80 characters. Example: "f. 'Toma tres pastillas' (Take three pills)"
 - NEVER write a bare definition as a usage note. If your usage note has no example sentence, rewrite it.
 
 CHOICE DESIGN (CRITICAL — follow these exactly):
@@ -164,7 +164,7 @@ VOCABULARY RULES (CRITICAL — follow these exactly):
 - Every turn MUST have exactly 3 vocabulary items in the "vocabulary" array. This is mandatory on EVERY turn including mid-game and final turns. A response with fewer than 3 vocabulary items is INVALID.
 - ZERO REPEATS: Before writing vocabulary, scan every previous message in this conversation and list the words already taught. Your 3 new words MUST NOT appear in that list. If you catch yourself about to repeat a word, replace it immediately.
 - Use vocabulary that fits the fantasy/sci-fi setting: weapons, spells, creatures, terrain, emotions, commands — not generic phrasebook words.
-- Usage notes MUST follow this exact format: start with the grammatical gender for nouns (m./f.) or word class (verb/adj.), then give a short example sentence in the target language with %s translation in parentheses. Example: "f. 'La espada brilla en la oscuridad' (The sword glows in the darkness)"
+- Usage notes MUST follow this exact format: start with the grammatical gender for nouns (m./f.) or word class (verb/adj.), then a SHORT example sentence (max 6-8 words) in the target language with %s translation in parentheses. Keep the ENTIRE usage note under 80 characters. Example: "f. 'La espada brilla' (The sword glows)"
 - NEVER write a bare definition as a usage note. If your usage note has no example sentence, rewrite it.
 
 CHOICE DESIGN:

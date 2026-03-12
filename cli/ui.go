@@ -343,8 +343,8 @@ func RenderGameScreen(data *GameScreenData) {
 		budget = 3 // always show at least something
 	}
 
-	// Allocate budget in priority order: narrative > npc > grammar > vocab
-	sections := []*[]string{&narrative, &npc, &grammar, &vocab}
+	// Allocate budget in priority order: narrative > npc > vocab > grammar
+	sections := []*[]string{&narrative, &npc, &vocab, &grammar}
 	for _, sec := range sections {
 		n := len(*sec)
 		if n <= budget {
@@ -645,7 +645,7 @@ func RenderStreamingScreen(scenario, lang string, correction *api.Correction, ra
 		budget = 3
 	}
 
-	sections := []*[]string{&narrative, &npc, &grammar, &vocab}
+	sections := []*[]string{&narrative, &npc, &vocab, &grammar}
 	for _, sec := range sections {
 		n := len(*sec)
 		if n <= budget {
