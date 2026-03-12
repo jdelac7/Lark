@@ -17,7 +17,8 @@ import (
 var Version = "dev"
 
 const (
-	releasesURL = "https://lark.black/releases"
+	versionURL  = "https://lark.black/releases/version.txt"
+	releasesURL = "https://github.com/jdelac7/Lark/releases/latest/download"
 )
 
 func handleUpdateCommand() {
@@ -117,7 +118,7 @@ func handleVersionCommand() {
 }
 
 func fetchRemoteVersion() (string, error) {
-	text, err := fetchText(releasesURL + "/version.txt")
+	text, err := fetchText(versionURL)
 	if err != nil {
 		return "", err
 	}

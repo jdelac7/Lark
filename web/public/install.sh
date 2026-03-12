@@ -4,7 +4,7 @@ set -e
 # Lark CLI installer
 # Usage: curl -fsSL https://lark.black/install.sh | sh
 
-BASE_URL="https://lark.black/releases"
+BASE_URL="https://github.com/jdelac7/Lark/releases/latest/download"
 INSTALL_DIR="${LARK_INSTALL_DIR:-$HOME/.local/bin}"
 
 # Colors (disabled if not a terminal)

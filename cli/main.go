@@ -48,6 +48,9 @@ func main() {
 		case "update":
 			handleUpdateCommand()
 			return
+		case "uninstall":
+			handleUninstallCommand()
+			return
 		case "version", "--version", "-v":
 			handleVersionCommand()
 			return

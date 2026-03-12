@@ -449,6 +449,7 @@ func handleHelpCommand() {
     lark switch                 Switch between subscription and BYOK mode
     lark logout                 Remove all stored credentials
     lark update                 Update to the latest version
+    lark uninstall              Remove lark and all config data
     lark version                Show current version
     lark help                   Show this help
 
@@ -464,4 +465,42 @@ func handleHelpCommand() {
     License key:   LARK_LICENSE_KEY env var or ~/.config/lark/license
     API key:       LARK_API_KEY env var or ~/.config/lark/apikey
 `)
+}
+
+// handleUninstallCommand removes the lark binary and all config data.
+func handleUninstallCommand() {
+	fmt.Print("\n  This will remove the lark binary and all config data (~/.config/lark/).\n  Are you sure? [y/N] ")
+
+	var answer string
+	fmt.Scanln(&answer)
+	if answer != "y" && answer != "Y" {
+		fmt.Println("  Cancelled.")
+		return
+	}
+
+	// Remove config directory
+	home, err := os.UserHomeDir()
+	if err == nil {
+		configPath := filepath.Join(home, ".config", configDirName)
+		if err := os.RemoveAll(configPath); err != nil {
+			fmt.Fprintf(os.Stderr, "  Warning: could not remove %s: %v\n", configPath, err)
+		} else {
+			fmt.Printf("  Removed %s\n", configPath)
+		}
+	}
+
+	// Remove the binary itself
+	binPath, err := os.Executable()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "  Error: could not determine binary path: %v\n", err)
+		os.Exit(1)
+	}
+	binPath, _ = filepath.EvalSymlinks(binPath)
+
+	if err := os.Remove(binPath); err != nil {
+		fmt.Fprintf(os.Stderr, "  Error: could not remove %s: %v\n  Try: sudo rm %s\n", binPath, err, binPath)
+		os.Exit(1)
+	}
+	fmt.Printf("  Removed %s\n", binPath)
+	fmt.Println("\n  Lark has been uninstalled.")
 }
