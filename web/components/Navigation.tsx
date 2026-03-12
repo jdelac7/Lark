@@ -12,7 +12,7 @@ export default function Navigation() {
           <a href="/" className="text-glow-subtle font-bold text-accent">
             lark
           </a>
-          <span className="text-xs text-text-dim">v0.8.0</span>
+          <span className="text-xs text-text-dim">v1.0.2</span>
           <span className="border border-yellow/40 bg-yellow/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-yellow">
             beta
           </span>
