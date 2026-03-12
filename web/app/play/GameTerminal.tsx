@@ -547,7 +547,7 @@ export default function GameTerminal() {
     try {
       const result = await sendChoiceStream(sessionId, index, handleToken);
       setMessage(result.message);
-      if (result.correction) setCorrection(result.correction);
+      if (result.correction?.original) setCorrection(result.correction);
       setStreamTokens("");
       setState(result.message.finished ? "finished" : "playing");
       afterTurn(result.message, result.correction || null);
@@ -1026,7 +1026,7 @@ export default function GameTerminal() {
                       </div>
                     </div>
                   )}
-                  {settings.showGrammar && correction && (
+                  {settings.showGrammar && correction && correction.original && (
                     <div className="border border-yellow/30 bg-yellow/5 p-3">
                       <div className="mb-1 text-xs font-bold text-yellow">
                         CORRECTION
@@ -1104,7 +1104,7 @@ export default function GameTerminal() {
                 )}
 
               {/* Correction */}
-              {settings.showGrammar && correction && (
+              {settings.showGrammar && correction && correction.original && (
                 <div className="border border-yellow/30 bg-yellow/5 p-3">
                   <div className="mb-1 text-xs font-bold text-yellow">
                     CORRECTION

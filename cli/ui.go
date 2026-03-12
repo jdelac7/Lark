@@ -253,7 +253,7 @@ func buildVocab(vocab []api.VocabItem, w int) []string {
 }
 
 func buildGrammar(c *api.Correction, w, inner int) []string {
-	if c == nil || (appSettings != nil && appSettings.HideGrammar) {
+	if c == nil || c.Original == "" || (appSettings != nil && appSettings.HideGrammar) {
 		return nil
 	}
 	var lines []string
