@@ -35,6 +35,12 @@ const features = [
     detail:
       "Design any scenario you can imagine — from buying flowers to renting an apartment.",
   },
+  {
+    label: "Help",
+    summary: "Run lark help to see all options",
+    detail:
+      "View every command, flag, and configuration option available — right from your terminal.",
+  },
 ];
 
 export default function Features() {
