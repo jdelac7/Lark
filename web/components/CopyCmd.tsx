@@ -15,6 +15,12 @@ export default function CopyCmd({
     navigator.clipboard.writeText(cmd).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
+      if (typeof window.gtag === "function") {
+        window.gtag("event", "copy_install_command", {
+          event_category: "download",
+          event_label: cmd,
+        });
+      }
     });
   }
 

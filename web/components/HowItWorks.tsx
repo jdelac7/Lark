@@ -183,6 +183,14 @@ export default function HowItWorks() {
                 <div className="mt-3">
                   <a
                     href="/play"
+                    onClick={() => {
+                      if (typeof window.gtag === "function") {
+                        window.gtag("event", "cta_click", {
+                          event_category: "engagement",
+                          event_label: "play_now_browser",
+                        });
+                      }
+                    }}
                     className="inline-block border border-purple px-4 py-2 text-sm font-bold text-purple transition-colors hover:bg-purple/10"
                   >
                     &gt; PLAY NOW

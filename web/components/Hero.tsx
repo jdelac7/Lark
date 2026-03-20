@@ -63,6 +63,14 @@ export default function Hero() {
           {isSubscribed ? (
             <a
               href="/play"
+              onClick={() => {
+                if (typeof window.gtag === "function") {
+                  window.gtag("event", "cta_click", {
+                    event_category: "engagement",
+                    event_label: "hero_play",
+                  });
+                }
+              }}
               className="inline-flex items-center gap-2 border border-accent px-5 py-2.5 text-accent transition-colors hover:bg-accent/10"
             >
               <span className="text-text-dim">&gt;</span> play
@@ -70,6 +78,14 @@ export default function Hero() {
           ) : (
             <a
               href="#shop"
+              onClick={() => {
+                if (typeof window.gtag === "function") {
+                  window.gtag("event", "cta_click", {
+                    event_category: "engagement",
+                    event_label: "hero_subscribe",
+                  });
+                }
+              }}
               className="inline-flex items-center gap-2 border border-accent px-5 py-2.5 text-accent transition-colors hover:bg-accent/10"
             >
               <span className="text-text-dim">&gt;</span> subscribe
